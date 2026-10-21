@@ -77,3 +77,7 @@ The pilot does not certify active balance. Review force-applied metadata, measur
 - `docs/`, `tasks/` — decisions, plans, risk boundaries and phase gates
 
 Read [AGENTS.md](AGENTS.md), [PROJECT_INSTRUCTIONS.md](PROJECT_INSTRUCTIONS.md), [implementation plan](IMPLEMENTATION_PLAN.md), [backlog](tasks/backlog.md) and [roadmap](docs/ROADMAP.md). Hardware changes need explicit operator approval. Never power multiple servos from Arduino Uno 5V, route AI output to raw PWM, or commit credentials/private recordings.
+
+## Native Webots disturbance pilot in GitHub CI
+
+`.github/workflows/disturbance-pilot.yml` launches the **actual Webots R2025a** controller in a pinned Ubuntu container on every PR to `master`. It runs one bounded matched baseline/balance pair per direction (pitch ±, roll ±) and publishes `balance-pilot-ci-report.json`, `.md`, the simulator console and per-run CSV/JSON as a 30-day artifact. Any `FAULT` or `INCONCLUSIVE` result is made explicit. A workflow marked green means **evidence was recorded and structurally validated**, *not* that PID balance has been proven. Full scientific acceptance still needs >=3 comparable pairs per direction, verified settling and real foot contact. See [CI report feedback loop](docs/CI_REPORT_FEEDBACK_LOOP.md).
