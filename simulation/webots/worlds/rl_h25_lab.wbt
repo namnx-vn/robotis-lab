@@ -1,0 +1,87 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "../protos/RLH25.proto"
+
+WorldInfo {
+  info [
+    "Y-up (NUE), SI meters, initial target height 0.250 m."
+  ]
+  title "Robotis Lab — RL-H25 v0.2 Standing & Balance"
+  basicTimeStep 16
+  gravity 9.81
+  coordinateSystem "NUE"
+  randomSeed 4
+  contactProperties [
+    ContactProperties {
+      material1 "floor"
+      material2 "foot_grip"
+      coulombFriction [ 1.1 ]
+      bounce 0
+    }
+  ]
+}
+Viewpoint {
+  orientation -0.5773502691896258 0.5773502691896257 0.5773502691896258 2.0943951023931953
+  position -0.011445476907665354 0.12439305452893656 0.9976395121903384
+}
+DirectionalLight {
+  direction -0.5 -1 -0.5
+  castShadows TRUE
+}
+DEF FLOOR Solid {
+  translation 0 -0.025 0
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.74 0.78 0.77
+        roughness 0.95
+        metalness 0
+      }
+      geometry Box {
+        size 2 0.05 2
+      }
+    }
+  ]
+  name "floor"
+  contactMaterial "floor"
+  boundingObject Box {
+    size 2 0.05 2
+  }
+}
+DEF OBSTACLE Solid {
+  translation 0 0.075 -0.65
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.85 0.35 0.14
+        roughness 0.9
+        metalness 0
+      }
+      geometry Box {
+        size 0.15 0.15 0.1
+      }
+    }
+  ]
+  name "obstacle"
+  boundingObject Box {
+    size 0.15 0.15 0.1
+  }
+}
+RLH25 {
+  hidden position_0_0 -7.289751812173911e-12
+  hidden position_0_1 -7.271516722084925e-12
+  hidden position_7_0 4.783559547520122e-05
+  hidden rotation_8 0.9999999999999999 0 0 4.7835596169053725e-05
+  hidden position_8_0 -3.4707348106621794e-11
+  hidden position_9_0 -0.00019134248750418692
+  hidden rotation_10 -1 0 0 0.00019134248686481376
+  hidden position_10_0 -5.568789873677815e-11
+  hidden position_12_0 4.783559547714294e-05
+  hidden rotation_13 1 0 0 4.7835596169053725e-05
+  hidden position_13_0 -3.4707348106621794e-11
+  hidden position_14_0 -0.00019134248750383474
+  hidden rotation_15 -0.9999999999999999 0 0 0.00019134248686481376
+  hidden position_15_0 -5.570260665154293e-11
+  translation -9.864243739549879e-14 0.1829566713935842 6.364685317100355e-05
+  rotation 1 -7.204800223714028e-13 4.786532032863466e-09 0.0003206132541422471
+}

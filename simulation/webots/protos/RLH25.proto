@@ -1,0 +1,484 @@
+#VRML_SIM R2025a utf8
+# Robotis Lab RL-H25 v0.1 — generated; edit configs/robot.json and tools/generate_model.py.
+# Y-up coordinates (WorldInfo coordinateSystem "NUE"); height at zero joint pose: 0.250 m.
+# Physics masses are illustrative only; motor torque is NOT validated against a real servo.
+PROTO RLH25 [
+  field SFVec3f translation 0 0.183 0
+  field SFRotation rotation 0 1 0 0
+  field SFString name "RL-H25"
+  field SFString controller "rl_h25_controller"
+] {
+  Robot {
+    translation IS translation
+    rotation IS rotation
+    name IS name
+    model "Robotis Lab RL-H25 v0.1"
+    controller IS controller
+    supervisor TRUE
+    children [
+    Transform {
+      translation 0 0.01 0
+      children [
+        Shape {
+          appearance PBRAppearance { baseColor 0.86 0.89 0.93 roughness 0.8 metalness 0 }
+          geometry Box { size 0.09 0.075 0.042 }
+        }
+      ]
+    }
+    Transform {
+      translation 0 0.045 -0.004
+      children [
+        Shape {
+          appearance PBRAppearance { baseColor 0.95 0.96 0.98 roughness 0.8 metalness 0 }
+          geometry Box { size 0.044 0.044 0.04 }
+        }
+      ]
+    }
+    Transform {
+      translation -0.065 -0.005 0
+      children [
+        Shape {
+          appearance PBRAppearance { baseColor 0.38 0.61 0.82 roughness 0.8 metalness 0 }
+          geometry Box { size 0.018 0.075 0.023 }
+        }
+      ]
+    }
+    Transform {
+      translation 0.065 -0.005 0
+      children [
+        Shape {
+          appearance PBRAppearance { baseColor 0.38 0.61 0.82 roughness 0.8 metalness 0 }
+          geometry Box { size 0.018 0.075 0.023 }
+        }
+      ]
+    }
+      InertialUnit {
+        name "imu"
+        rotation 0 1 0 1.57079632679
+      }
+      Gyro { name "gyro" }
+      Accelerometer { name "accelerometer" }
+      GPS { name "root_gps" }
+      Camera {
+        name "head_camera"
+        translation 0 0.048 -0.025
+        width 128
+        height 96
+        fieldOfView 0.9
+      }
+      DistanceSensor {
+        name "front_distance"
+        translation 0 -0.055 -0.040
+        rotation 0 1 0 1.57079632679
+        type "laser"
+        numberOfRays 1
+        lookupTable [ 0 0 0, 1.5 1.5 0 ]
+      }
+    HingeJoint {
+      jointParameters HingeJointParameters {
+        axis 0 0 1
+        anchor -0.031 -0.031 0
+        minStop -0.45
+        maxStop 0.45
+        dampingConstant 0.006
+      }
+      device [
+        RotationalMotor {
+          name "left_hip_roll"
+          minPosition -0.45
+          maxPosition 0.45
+          maxVelocity 2
+          maxTorque 0.8
+        }
+        PositionSensor { name "left_hip_roll_sensor" }
+      ]
+      endPoint Solid {
+        translation -0.031 -0.031 0
+        name "left_hip_roll_link"
+
+        children [
+          Transform {
+            translation 0 0 0
+            children [
+              Shape {
+                appearance PBRAppearance { baseColor 0.13 0.22 0.38 roughness 0.8 metalness 0 }
+                geometry Box { size 0.014 0.012 0.02 }
+              }
+            ]
+          }
+          HingeJoint {
+            jointParameters HingeJointParameters {
+              axis 1 0 0
+              anchor 0 0 0
+              minStop -0.85
+              maxStop 0.85
+              dampingConstant 0.006
+            }
+            device [
+              RotationalMotor {
+                name "left_hip_pitch"
+                minPosition -0.85
+                maxPosition 0.85
+                maxVelocity 2
+                maxTorque 0.8
+              }
+              PositionSensor { name "left_hip_pitch_sensor" }
+            ]
+            endPoint Solid {
+              translation 0 0 0
+              name "left_hip_pitch_link"
+
+              children [
+                Transform {
+                  translation 0 -0.035 0
+                  children [
+                    Shape {
+                      appearance PBRAppearance { baseColor 0.88 0.88 0.91 roughness 0.8 metalness 0 }
+                      geometry Box { size 0.024 0.065 0.025 }
+                    }
+                  ]
+                }
+                HingeJoint {
+                  jointParameters HingeJointParameters {
+                    axis 1 0 0
+                    anchor 0 -0.07 0
+                    minStop -0.05
+                    maxStop 1.4
+                    dampingConstant 0.006
+                  }
+                  device [
+                    RotationalMotor {
+                      name "left_knee_pitch"
+                      minPosition -0.05
+                      maxPosition 1.4
+                      maxVelocity 2
+                      maxTorque 0.8
+                    }
+                    PositionSensor { name "left_knee_pitch_sensor" }
+                  ]
+                  endPoint Solid {
+                    translation 0 -0.07 0
+                    name "left_knee_pitch_link"
+
+                    children [
+                      Transform {
+                        translation 0 -0.035 0
+                        children [
+                          Shape {
+                            appearance PBRAppearance { baseColor 0.74 0.77 0.82 roughness 0.8 metalness 0 }
+                            geometry Box { size 0.022 0.065 0.023 }
+                          }
+                        ]
+                      }
+                      HingeJoint {
+                        jointParameters HingeJointParameters {
+                          axis 1 0 0
+                          anchor 0 -0.07 0
+                          minStop -0.65
+                          maxStop 0.65
+                          dampingConstant 0.006
+                        }
+                        device [
+                          RotationalMotor {
+                            name "left_ankle_pitch"
+                            minPosition -0.65
+                            maxPosition 0.65
+                            maxVelocity 2
+                            maxTorque 0.8
+                          }
+                          PositionSensor { name "left_ankle_pitch_sensor" }
+                        ]
+                        endPoint Solid {
+                          translation 0 -0.07 0
+                          name "left_ankle_pitch_link"
+
+                          children [
+                            Transform {
+                              translation 0 0 0
+                              children [
+                                Shape {
+                                  appearance PBRAppearance { baseColor 0.13 0.22 0.38 roughness 0.8 metalness 0 }
+                                  geometry Box { size 0.014 0.012 0.02 }
+                                }
+                              ]
+                            }
+                            HingeJoint {
+                              jointParameters HingeJointParameters {
+                                axis 0 0 1
+                                anchor 0 0 0
+                                minStop -0.4
+                                maxStop 0.4
+                                dampingConstant 0.006
+                              }
+                              device [
+                                RotationalMotor {
+                                  name "left_ankle_roll"
+                                  minPosition -0.4
+                                  maxPosition 0.4
+                                  maxVelocity 2
+                                  maxTorque 0.8
+                                }
+                                PositionSensor { name "left_ankle_roll_sensor" }
+                              ]
+                              endPoint Solid {
+                                translation 0 0 0
+                                name "left_ankle_roll_link"
+                                contactMaterial "foot_grip"
+                                children [
+                                  Transform {
+                                    translation 0 -0.003 -0.008
+                                    children [
+                                      Shape {
+                                        appearance PBRAppearance { baseColor 0.13 0.20 0.29 roughness 0.8 metalness 0 }
+                                        geometry Box { size 0.044 0.018 0.076 }
+                                      }
+                                    ]
+                                  }
+                                ]
+                                boundingObject Transform {
+                                  translation 0 -0.003 -0.008
+                                  children [ Box { size 0.044 0.018 0.076 } ]
+                                }
+                                physics Physics { density -1 mass 0.028 }
+                              }
+                            }
+                          ]
+                          boundingObject Transform {
+                            translation 0 0 0
+                            children [ Box { size 0.014 0.012 0.02 } ]
+                          }
+                          physics Physics { density -1 mass 0.008 }
+                        }
+                      }
+                    ]
+                    boundingObject Transform {
+                      translation 0 -0.035 0
+                      children [ Box { size 0.022 0.065 0.023 } ]
+                    }
+                    physics Physics { density -1 mass 0.033 }
+                  }
+                }
+              ]
+              boundingObject Transform {
+                translation 0 -0.035 0
+                children [ Box { size 0.024 0.065 0.025 } ]
+              }
+              physics Physics { density -1 mass 0.039 }
+            }
+          }
+        ]
+        boundingObject Transform {
+          translation 0 0 0
+          children [ Box { size 0.014 0.012 0.02 } ]
+        }
+        physics Physics { density -1 mass 0.012 }
+      }
+    }
+    HingeJoint {
+      jointParameters HingeJointParameters {
+        axis 0 0 1
+        anchor 0.031 -0.031 0
+        minStop -0.45
+        maxStop 0.45
+        dampingConstant 0.006
+      }
+      device [
+        RotationalMotor {
+          name "right_hip_roll"
+          minPosition -0.45
+          maxPosition 0.45
+          maxVelocity 2
+          maxTorque 0.8
+        }
+        PositionSensor { name "right_hip_roll_sensor" }
+      ]
+      endPoint Solid {
+        translation 0.031 -0.031 0
+        name "right_hip_roll_link"
+
+        children [
+          Transform {
+            translation 0 0 0
+            children [
+              Shape {
+                appearance PBRAppearance { baseColor 0.13 0.22 0.38 roughness 0.8 metalness 0 }
+                geometry Box { size 0.014 0.012 0.02 }
+              }
+            ]
+          }
+          HingeJoint {
+            jointParameters HingeJointParameters {
+              axis 1 0 0
+              anchor 0 0 0
+              minStop -0.85
+              maxStop 0.85
+              dampingConstant 0.006
+            }
+            device [
+              RotationalMotor {
+                name "right_hip_pitch"
+                minPosition -0.85
+                maxPosition 0.85
+                maxVelocity 2
+                maxTorque 0.8
+              }
+              PositionSensor { name "right_hip_pitch_sensor" }
+            ]
+            endPoint Solid {
+              translation 0 0 0
+              name "right_hip_pitch_link"
+
+              children [
+                Transform {
+                  translation 0 -0.035 0
+                  children [
+                    Shape {
+                      appearance PBRAppearance { baseColor 0.88 0.88 0.91 roughness 0.8 metalness 0 }
+                      geometry Box { size 0.024 0.065 0.025 }
+                    }
+                  ]
+                }
+                HingeJoint {
+                  jointParameters HingeJointParameters {
+                    axis 1 0 0
+                    anchor 0 -0.07 0
+                    minStop -0.05
+                    maxStop 1.4
+                    dampingConstant 0.006
+                  }
+                  device [
+                    RotationalMotor {
+                      name "right_knee_pitch"
+                      minPosition -0.05
+                      maxPosition 1.4
+                      maxVelocity 2
+                      maxTorque 0.8
+                    }
+                    PositionSensor { name "right_knee_pitch_sensor" }
+                  ]
+                  endPoint Solid {
+                    translation 0 -0.07 0
+                    name "right_knee_pitch_link"
+
+                    children [
+                      Transform {
+                        translation 0 -0.035 0
+                        children [
+                          Shape {
+                            appearance PBRAppearance { baseColor 0.74 0.77 0.82 roughness 0.8 metalness 0 }
+                            geometry Box { size 0.022 0.065 0.023 }
+                          }
+                        ]
+                      }
+                      HingeJoint {
+                        jointParameters HingeJointParameters {
+                          axis 1 0 0
+                          anchor 0 -0.07 0
+                          minStop -0.65
+                          maxStop 0.65
+                          dampingConstant 0.006
+                        }
+                        device [
+                          RotationalMotor {
+                            name "right_ankle_pitch"
+                            minPosition -0.65
+                            maxPosition 0.65
+                            maxVelocity 2
+                            maxTorque 0.8
+                          }
+                          PositionSensor { name "right_ankle_pitch_sensor" }
+                        ]
+                        endPoint Solid {
+                          translation 0 -0.07 0
+                          name "right_ankle_pitch_link"
+
+                          children [
+                            Transform {
+                              translation 0 0 0
+                              children [
+                                Shape {
+                                  appearance PBRAppearance { baseColor 0.13 0.22 0.38 roughness 0.8 metalness 0 }
+                                  geometry Box { size 0.014 0.012 0.02 }
+                                }
+                              ]
+                            }
+                            HingeJoint {
+                              jointParameters HingeJointParameters {
+                                axis 0 0 1
+                                anchor 0 0 0
+                                minStop -0.4
+                                maxStop 0.4
+                                dampingConstant 0.006
+                              }
+                              device [
+                                RotationalMotor {
+                                  name "right_ankle_roll"
+                                  minPosition -0.4
+                                  maxPosition 0.4
+                                  maxVelocity 2
+                                  maxTorque 0.8
+                                }
+                                PositionSensor { name "right_ankle_roll_sensor" }
+                              ]
+                              endPoint Solid {
+                                translation 0 0 0
+                                name "right_ankle_roll_link"
+                                contactMaterial "foot_grip"
+                                children [
+                                  Transform {
+                                    translation 0 -0.003 -0.008
+                                    children [
+                                      Shape {
+                                        appearance PBRAppearance { baseColor 0.13 0.20 0.29 roughness 0.8 metalness 0 }
+                                        geometry Box { size 0.044 0.018 0.076 }
+                                      }
+                                    ]
+                                  }
+                                ]
+                                boundingObject Transform {
+                                  translation 0 -0.003 -0.008
+                                  children [ Box { size 0.044 0.018 0.076 } ]
+                                }
+                                physics Physics { density -1 mass 0.028 }
+                              }
+                            }
+                          ]
+                          boundingObject Transform {
+                            translation 0 0 0
+                            children [ Box { size 0.014 0.012 0.02 } ]
+                          }
+                          physics Physics { density -1 mass 0.008 }
+                        }
+                      }
+                    ]
+                    boundingObject Transform {
+                      translation 0 -0.035 0
+                      children [ Box { size 0.022 0.065 0.023 } ]
+                    }
+                    physics Physics { density -1 mass 0.033 }
+                  }
+                }
+              ]
+              boundingObject Transform {
+                translation 0 -0.035 0
+                children [ Box { size 0.024 0.065 0.025 } ]
+              }
+              physics Physics { density -1 mass 0.039 }
+            }
+          }
+        ]
+        boundingObject Transform {
+          translation 0 0 0
+          children [ Box { size 0.014 0.012 0.02 } ]
+        }
+        physics Physics { density -1 mass 0.012 }
+      }
+    }
+    ]
+    boundingObject Transform {
+      translation 0 0.01 0
+      children [ Box { size 0.09 0.075 0.042 } ]
+    }
+    physics Physics { density -1 mass 0.14 }
+  }
+}
