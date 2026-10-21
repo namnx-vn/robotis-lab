@@ -12,3 +12,4 @@ simulation/webots/worlds/*.wbproj.*
 *.avi
 *.log
 .DS_Store
+reports/
