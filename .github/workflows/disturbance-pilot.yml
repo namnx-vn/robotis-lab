@@ -1,0 +1,95 @@
+name: Webots disturbance pilot
+on:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  disturbance-pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: cyberbotics/webots:R2025a-ubuntu22.04
+      options: --shm-size=2g
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Validate offline code first
+        shell: bash
+        run: |
+          python3 tools/verify_project.py
+          python3 -m unittest discover -s tests -v
+          python3 -m compileall -q simulation/webots/controllers tools tests
+
+      - name: Run bounded pilot for both pitch and roll directions
+        id: experiment
+        shell: bash
+        run: |
+          mkdir -p reports experiments/logs
+          set +e
+          python3 tools/run_balance_matrix.py \
+            --pairs 1 --force 0.10 --pulse 0.112 --duration 14 \
+            > reports/disturbance-pilot.log 2>&1
+          result=$?
+          cat reports/disturbance-pilot.log
+          echo "runner_exit=$result" >> "$GITHUB_OUTPUT"
+          # One paired trial per direction *always* returns 1 as a scientific gate.
+          # The following reporting step interprets whether valid evidence exists.
+          exit 0
+
+      - name: Build reviewable experiment report
+        id: report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p reports
+          set +e
+          python3 tools/ci_disturbance_report.py \
+            --logs-dir experiments/logs --output-dir reports \
+            --commit-sha "${{ github.sha }}" \
+            --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          report_code=$?
+          if [[ -f reports/balance-pilot-ci-report.md ]]; then
+            cat reports/balance-pilot-ci-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "report_exit=$report_code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload pilot report and raw telemetry
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robotis-lab-disturbance-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            reports/*.md
+            reports/*.json
+            reports/*.log
+            experiments/logs/*.csv
+            experiments/logs/*.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Enforce artifact integrity, not a false scientific PASS
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("reports/balance-pilot-ci-report.json")
+          if not p.is_file():
+              raise SystemExit("Pilot evidence report missing")
+          report = json.loads(p.read_text(encoding="utf-8"))
+          if report.get("ci_evidence_ok") is not True:
+              raise SystemExit("Pilot infrastructure/evidence failure; inspect uploaded artifact")
+          if report.get("scientific_balance_certified") is not False:
+              raise SystemExit("Pilot must never certify active balance")
+          print("Experiment evidence collected; scientific assessment:", report["assessment"])
+          PY
