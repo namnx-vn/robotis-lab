@@ -119,10 +119,10 @@ def write_report(report: dict[str, Any], output_dir: Path) -> None:
         json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     lines = [
         "# RL-H25 Webots Controlled Disturbance Pilot",
-        "", f"- Commit: \`{report['commit_sha']}\`",
+        "", f"- Commit: `{report['commit_sha']}`",
         f"- Native Webots experiment: **{report['assessment']}**",
-        f"- Simulation protocol gate: \`{report['experiment_gate']}\`",
-        f"- Artifact validity: \`{'OK' if report['ci_evidence_ok'] else 'INVALID'}\`",
+        f"- Simulation protocol gate: `{report['experiment_gate']}`",
+        f"- Artifact validity: `{'OK' if report['ci_evidence_ok'] else 'INVALID'}`",
         "- Active balance certified: **NO** (pilot cannot qualify)",
         "", "| Direction | Pilot result | Baseline | PID |",
         "| --- | --- | --- | --- |",
