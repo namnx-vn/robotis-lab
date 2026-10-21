@@ -29,3 +29,10 @@ python3 -m unittest discover -s tests -v
 python3 -m compileall -q simulation/webots/controllers tools tests
 ```
 Native Webots R2025a 3D parser/foot contact/dynamics **cannot** be certified by Python unit tests alone.
+
+## Required CI evidence loop for each source change
+1. Before a new robotics source PR, inspect the most recent `Webots simulation` GitHub Actions report and its exact commit; compare the profile (`smoke` vs `baseline`) to the claimed capability.
+2. After opening a PR, let GitHub Actions run native Webots smoke and offline tests. Download/read the report artifact (`ci-report.json`, profile-specific gate, `simulation.log`, and CSV) before proposing additional controller changes.
+3. After merge, inspect five independent baseline trials on the merged `master` SHA. A green smoke report is **not** P2 balance recovery evidence; reproducible roll/pitch perturbations are still required.
+4. Record observed metrics, first fault timestamp/reason, plausible root cause and next falsifiable test. Do not claim a pass when telemetry is absent/inconclusive. See `docs/CI_REPORT_FEEDBACK_LOOP.md`.
+5. No unattended merge, unsafe automatic PID tuning, hardware commands or secret uploads. An interactive chat cannot itself react instantly to a GitHub webhook; a separate opted-in watch may check new reports periodically.
