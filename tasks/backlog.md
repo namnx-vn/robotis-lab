@@ -1,38 +1,34 @@
-# Sprint 01 task ledger
+# Robotis Lab — Sprint backlog and phase gates
 
-- [x] Create Webots world and generated `RLH25.proto` with 10 DOF.
-- [x] Add approximate per-link Physics, bounding boxes, floor contact friction.
-- [x] Add IMU, Gyro, Accelerometer, GPS, Camera, laser DistanceSensor.
-- [x] Implement neutral target hold, joint rate limits, FAULT/STOP/E_STOP simulation.
-- [x] Add offline tests, fake simulator loop tests and telemetry analyzer.
-- [ ] Open and parse the world in a genuine Webots install.
-- [ ] Inspect actual joint axes + contacts with the Webots optional rendering tools.
-- [ ] Run full 8-second live smoke + save CSV, screenshot and simulator version.
-- [ ] Measure 5 × 30-second stand trials (P2; separate sprint/gate).
-- [ ] Inventory actual physical parts; no purchases before torque/power estimates.
+## P1 — Initial Webots RL-H25 skeleton (completed for native launch)
+- [x] Webots R2025a parser and 10 DOF geometry seen running on operator macOS.
+- [x] Add IMU/gyro/accelerometer/GPS/camera/distance telemetry and Physics.
+- [ ] Visually verify bounding boxes, both foot contacts and absence of false static anchoring in Webots.
 
-Next action: user runs `python tools/smoke_webots.py` on a host with Webots installed,
-reports warnings/logs. Modify world/model minimally based on actual parser or physics result.
+## P2.1 — Static standing baseline (automated gate passed)
+- [x] Bounded IMU pitch/roll PID implemented (offline tests; native recovery unverified).
+- [x] Native Webots baseline: operator-reported **5/5 PASS**, 31.92 s each, no FAULT.
+- [ ] Upload or attach real CSV/JSON runs for independent analysis; confirm foot contact GUI observations.
 
-## Sprint 02 v0.2 Standing & Balance status
+## P2.2 — Controlled balance recovery (current sprint)
+- [x] Opt-in, bounded Supervisor pulse for matched baseline/balance simulations.
+- [x] Experiment runner and telemetry validity checks; FAULT and absent excitation are not passes.
+- [x] Add four-case pitch+/pitch-/roll+/roll- matrix and fail-closed aggregate gate.
+- [x] Add Python 3.10/3.12 CI on pull requests; offline suite.
+- [ ] Operator: one-pair pilot matrix in native Webots R2025a.
+- [ ] Check whether all four directions receive measurable force without faults.
+- [ ] Operator: five matched pairs/direction only after pilot review.
+- [ ] Validate PID axis signs/gains from observed telemetry and controlled recovery.
+- [ ] Confirm surface contacts and COM dynamics in GUI; maintain 0.45 rad hard FAULT limit.
 
-- [x] Build strict baseline analysis (CSV + metadata + GPS planar drift; 5 independent trials gate)
-- [x] Add bounded IMU angle PID roll/pitch with slew/max/min limits
-- [x] Simulated FAULT, STOP, E_STOP and integration regressions
-- [x] Run Python offline test suite
-- [ ] Operator: run 5×32s baseline in actual Webots R2025a and submit logs
-- [ ] Operator: validate axis-sign mapping, then run short PID and 5×32s balance trials
-- [ ] Only if both: review measured torque/contact/instability and tune
+## P3 — Weight shift and gait (BLOCKED)
+- [ ] Gate: >=3 matched comparable pairs **for each of four directions**, >=10% lower peak tilt with balance, no FAULT and measured recovery; validate contact/friction.
+- [ ] Only after gate approval: supported weight shift, then single simulation step with contact logs.
 
-## Sprint 02.1 — Current
+## Hardware (NOT STARTED)
+- [ ] Inventory actual servo/IMU/Uno/components and fabrication.
+- [ ] Torque/power calculations; one-joint current/thermal bench before purchasing.
+- [ ] Independent servo rail, fusing, E-STOP; operator authorization.
 
-- [x] Add opt-in bounded Supervisor force pulse without changing 10-DOF geometry.
-- [x] Paired fresh-process baseline/balance experiment + CSV/JSON evidence.
-- [x] Make no-perturbation INCONCLUSIVE; assert FAULT/recovery criteria.
-- [x] Unit/fake-Webots regression tests.
-- [ ] On owner Mac: 1 pilot pair (pitch), inspect measured excitation and fault.
-- [ ] On owner Mac: 5 matched pitch pairs; separately roll and reverse directions.
-- [ ] Use telemetry to validate/retune sign/gains; reproduce negative cases.
-- [ ] Confirm two-foot contact and no false static anchoring in GUI.
-
-**Gate:** P3 weight shift/walking blocked until controlled balance verified.
+## Evidence discipline
+Python/fake-Webots test results do not prove native Webots dynamics. Logs in `experiments/logs/` are intentionally Git-ignored. The code cannot make safe hardware claims or walk unassisted merely because animation is visible.
