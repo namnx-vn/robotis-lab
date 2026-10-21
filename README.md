@@ -29,6 +29,19 @@ python3 tools/run_disturbance_trials.py \
 ```
 These scripts **do not exist on `master` yet**; import the maintained source and review its tests first. Native Webots physics tests must run locally on a machine with Webots R2025a.
 
+## Automated Webots reports
+
+GitHub Actions runs offline checks plus a native Webots simulation in the pinned R2025a container. Pull requests into `master` use the 8-second smoke profile; pushes to `master` run five independent 32-second baseline trials. Each run publishes a 30-day artifact named `robotis-lab-report-<commit-sha>-<run-id>-<run-attempt>` containing the Markdown/JSON CI report, console logs, and generated telemetry. A green baseline is evidence of static simulated standing only; it does not certify active balance or physical hardware.
+
+From another machine with the GitHub CLI authenticated, inspect and download a report with:
+
+```bash
+gh run list --workflow=simulation.yml
+gh run download <run-id> --name <artifact-name>
+```
+
+The workflow can also be started manually from the Actions page with either the `smoke` or `baseline` profile. Generated reports and telemetry are uploaded as artifacts and are not committed to the repository.
+
 ## Documents
 - [AGENTS.md](AGENTS.md) — engineering and safety contribution contract.
 - [docs/SOURCE_IMPORT.md](docs/SOURCE_IMPORT.md) — one-time source migration from local v0.2.1.

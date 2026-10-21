@@ -1,0 +1,143 @@
+name: Webots simulation
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: Simulation profile
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - baseline
+
+permissions:
+  contents: read
+
+jobs:
+  simulation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container:
+      image: cyberbotics/webots:R2025a-ubuntu22.04
+      options: --shm-size=2g
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Select simulation profile
+        id: profile
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_PROFILE: ${{ inputs.profile }}
+        run: |
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ "$REQUESTED_PROFILE" != "smoke" && "$REQUESTED_PROFILE" != "baseline" ]]; then
+              echo "ERROR: unsupported simulation profile: $REQUESTED_PROFILE" >&2
+              exit 2
+            fi
+            echo "value=$REQUESTED_PROFILE" >> "$GITHUB_OUTPUT"
+          elif [[ "$EVENT_NAME" == "pull_request" ]]; then
+            echo "value=smoke" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=baseline" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run offline checks
+        id: offline
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p reports
+          set +e
+          {
+            status=0
+            python3 tools/verify_project.py || status=1
+            python3 -m unittest discover -s tests -v || status=1
+            python3 -m compileall -q simulation/webots/controllers tools tests || status=1
+            exit "$status"
+          } 2>&1 | tee reports/offline.log
+          exit "${PIPESTATUS[0]}"
+
+      - name: Run Webots simulation
+        id: simulation
+        continue-on-error: true
+        shell: bash
+        env:
+          PROFILE: ${{ steps.profile.outputs.value }}
+        run: |
+          mkdir -p reports experiments/logs
+          set +e
+          {
+            status=0
+            if [[ "$PROFILE" == "smoke" ]]; then
+              python3 tools/smoke_webots.py || status=1
+            else
+              python3 tools/run_standing_trials.py \
+                --mode baseline --trials 5 --duration 32 || status=1
+
+              shopt -s nullglob
+              csv_files=(experiments/logs/baseline-*.csv)
+              if (( ${#csv_files[@]} == 0 )); then
+                echo "ERROR: no baseline telemetry CSV files were generated"
+                status=1
+              else
+                python3 tools/baseline_report.py \
+                  --json-output reports/standing_baseline_report.json \
+                  "${csv_files[@]}" || status=1
+              fi
+            fi
+            exit "$status"
+          } 2>&1 | tee reports/simulation.log
+          exit "${PIPESTATUS[0]}"
+
+      - name: Build CI report
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p reports
+          python3 tools/ci_report.py \
+            --profile "${{ steps.profile.outputs.value }}" \
+            --offline-status "${{ steps.offline.outcome }}" \
+            --simulation-status "${{ steps.simulation.outcome }}" \
+            --logs-dir experiments/logs \
+            --output-dir reports \
+            --commit-sha "${{ github.sha }}" \
+            --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          cat reports/ci-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload reports and telemetry
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: robotis-lab-report-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            reports/*.md
+            reports/*.json
+            reports/*.log
+            experiments/logs/*.csv
+            experiments/logs/*.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Enforce CI gate
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("reports/ci-report.json").read_text(encoding="utf-8"))
+          if report.get("overall_success") is not True:
+              raise SystemExit("CI report gate failed; inspect the uploaded artifact")
+          PY
