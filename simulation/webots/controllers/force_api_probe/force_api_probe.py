@@ -90,7 +90,7 @@ def main() -> None:
     # flushed. Save the exact result atomically to the runner-selected file.
     output_path = os.environ.get("RL_H25_FORCE_PROBE_OUT")
     if output_path:
-        Path(output_path).write_text(json.dumps(summary, sort_keys=True) + "\\n", encoding="utf-8")
+        Path(output_path).write_text(json.dumps(summary, sort_keys=True) + "\n", encoding="utf-8")
     print("FORCE_API_PROBE_RESULT=" + json.dumps(summary, sort_keys=True), flush=True)
     # Exit native Webots cleanly instead of leaving a headless batch process running.
     robot.simulationQuit(0 if ok else 1)
