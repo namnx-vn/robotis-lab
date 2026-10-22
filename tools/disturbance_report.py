@@ -119,12 +119,12 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
                    force_api_mode=dist["force_api_mode"],
                    simulation_timestep_s=meta["simulation_timestep_s"],
                    duration_s=round(times[-1]-times[0],3))
-        if not observed:
-            out["verdict"] = "INCONCLUSIVE"
-            failures.append("no_measurable_excitation")
-        elif fault or min_height < 0.10 or drift >= 0.10:
+        if fault or min_height < 0.10 or drift >= 0.10:
             out["verdict"] = "FAIL"
             failures.append("fault_fall_or_large_drift")
+        elif not observed:
+            out["verdict"] = "INCONCLUSIVE"
+            failures.append("no_measurable_excitation")
         elif settle is None:
             out["verdict"] = "FAIL"
             failures.append("did_not_settle_in_5s")
@@ -155,7 +155,8 @@ def compare_pairs(pairs: list[tuple[Path, Path]]) -> dict:
     # and a measurable improvement in peak response, not merely STAND once.
     if len(valid) < 3 or len(valid) != len(pairs) or not distinct:
         verdict = "INCONCLUSIVE"
-    elif any(p["balance"]["verdict"] != "RECOVERED" for p in valid):
+    elif any(p[mode]["verdict"] != "RECOVERED" for p in valid
+             for mode in ("baseline", "balance")):
         verdict = "FAIL"
     else:
         base_mean = sum(p["baseline"]["peak_tilt_change_rad"] for p in valid) / len(valid)
