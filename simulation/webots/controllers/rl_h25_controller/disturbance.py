@@ -5,6 +5,7 @@ There is NO physical-hardware control path and NO AI commands here.
 """
 from __future__ import annotations
 from dataclasses import dataclass
+import ctypes
 import math
 from typing import Mapping
 
@@ -56,12 +57,56 @@ class DisturbanceSpec:
                     world_force_n=self.force_vector())
 
 
+
+class ForceWithOffsetAPI:
+    """R2025a compatibility adapter: call the *correct* Webots C symbol.
+
+    ABI sources (Cyberbotics R2025a):
+    - include/controller/c/webots/supervisor.h:
+      void wb_supervisor_node_add_force_with_offset(
+        WbNodeRef, const double[3], const double[3], bool);
+    - lib/controller/python/controller/node.py: Node._ref is c_void_p;
+      its addForceWithOffset mistakenly dispatches wb_supervisor_node_add_force.
+
+    Native *physics* still needs independent confirmation in force_api_probe.
+    Never fall back to the known broken Python wrapper.
+    """
+
+    mode = "r2025a_ctypes_force_with_offset"
+
+    def __init__(self, solid: object, *, library: object | None = None) -> None:
+        ref = getattr(solid, "_ref", None)
+        if not isinstance(ref, ctypes.c_void_p) or not ref.value:
+            raise RuntimeError("Supervisor Node._ref must be a non-null c_void_p")
+        if library is None:
+            from controller.wb import wb  # loaded Webots libController, not a guessed dylib
+            library = wb
+        try:
+            method = library.wb_supervisor_node_add_force_with_offset
+        except AttributeError as exc:
+            raise RuntimeError("Webots C force-with-offset symbol unavailable") from exc
+        # WbNodeRef=void*, force/offset=pointer to three doubles, bool=bool (C).
+        method.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_double),
+                           ctypes.POINTER(ctypes.c_double), ctypes.c_bool]
+        method.restype = None
+        self._ref, self._apply = ref, method
+
+    def add(self, force: list[float], offset: list[float], relative: bool) -> None:
+        if (len(force) != 3 or len(offset) != 3 or
+                not all(math.isfinite(float(v)) for v in (*force, *offset))):
+            raise ValueError("force and offset must be finite 3-vectors")
+        vector = (ctypes.c_double * 3)(*force)
+        point = (ctypes.c_double * 3)(*offset)
+        self._apply(self._ref, vector, point, bool(relative))
+
+
 class DisturbanceInjector:
-    def __init__(self, spec: DisturbanceSpec, solid: object) -> None:
+    def __init__(self, spec: DisturbanceSpec, solid: object, *,
+                 force_api: ForceWithOffsetAPI | None = None) -> None:
         if solid is None:
             raise RuntimeError("Webots Supervisor.getSelf() returned None")
         self.spec = spec
-        self.solid = solid
+        self.force_api = force_api if force_api is not None else ForceWithOffsetAPI(solid)
         self.applied_steps = 0
         self.first_s: float | None = None
         self.last_s: float | None = None
@@ -72,8 +117,8 @@ class DisturbanceInjector:
                 now < self.spec.onset_s - 1e-8 or
                 now >= self.spec.onset_s + self.spec.pulse_s - 1e-8):
             return
-        self.solid.addForceWithOffset(self.spec.force_vector(),
-                                      [0.0, self.spec.offset_m, 0.0], False)
+        self.force_api.add(self.spec.force_vector(),
+                           [0.0, self.spec.offset_m, 0.0], False)
         self.applied_steps += 1
         if self.first_s is None:
             self.first_s = now
@@ -81,5 +126,6 @@ class DisturbanceInjector:
 
     def metadata(self) -> dict:
         return {**self.spec.metadata(), "applied_steps": self.applied_steps,
+                "force_api_mode": self.force_api.mode,
                 "first_application_s": self.first_s,
                 "last_application_s": self.last_s}
