@@ -58,6 +58,10 @@ def main() -> int:
     (args.output_dir / "force-api-probe.log").write_text(stdout, encoding="utf-8")
     try:
         outcome = parse_probe_log(stdout)
+        if timed_out:
+            raise ValueError("native Webots process timed out even though it emitted a result")
+        if proc.returncode != 0:
+            raise ValueError("native Webots returned nonzero status: " + str(proc.returncode))
         (args.output_dir / "force-api-probe.json").write_text(json.dumps(outcome, indent=2) + "\n", encoding="utf-8")
     except (ValueError, json.JSONDecodeError) as exc:
         print("FORCE API PROBE NOT ACCEPTED:", exc, file=sys.stderr)
