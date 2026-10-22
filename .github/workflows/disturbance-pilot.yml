@@ -28,9 +28,21 @@ jobs:
           python3 -m unittest discover -s tests -v
           python3 -m compileall -q simulation/webots/controllers tools tests
 
+      - name: Prove native free-body offset force and coordinate frames
+        id: force_probe
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p reports
+          python3 tools/run_force_api_probe.py --output-dir reports
+
       - name: Run bounded pilot for both pitch and roll directions
         id: experiment
+        if: steps.force_probe.outcome == 'success'
         shell: bash
+        env:
+          RL_H25_SOURCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          RL_H25_TEST_MERGE_SHA: ${{ github.sha }}
         run: |
           mkdir -p reports experiments/logs
           set +e
@@ -80,6 +92,10 @@ jobs:
         if: always()
         shell: bash
         run: |
+          if [[ "${{ steps.force_probe.outcome }}" != "success" ]]; then
+            echo "Native free-body force API probe failed or was not run; RL-H25 PID experiments are blocked" >&2
+            exit 1
+          fi
           python3 - <<'PY'
           import json
           from pathlib import Path
