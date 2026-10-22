@@ -141,12 +141,13 @@ robotis-lab/
 ├── README.md
 ├── AGENTS.md                      # Bản rút gọn từ instructions này
 ├── docs/
-│   ├── requirements.md
-│   ├── architecture.md
-│   ├── mechanics.md
-│   ├── electronics.md
-│   ├── safety.md
-│   └── decisions/                  # ADR-0001, ...
+│   ├── README.md                   # Danh mục tài liệu
+│   ├── ROADMAP.md
+│   ├── OPERATOR_HANDOFF.md         # Giữ đường dẫn cho automation
+│   ├── architecture/              # ADR, requirements, mechanics, safety
+│   ├── experiments/               # Standing & disturbance protocols
+│   ├── operations/                # CI report workflow
+│   └── archive/                   # Báo cáo lịch sử
 ├── simulation/
 │   └── webots/
 │       ├── worlds/rl_h25_lab.wbt

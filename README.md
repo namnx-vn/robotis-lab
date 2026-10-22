@@ -1,5 +1,7 @@
 # Robotis Lab — RL-H25 (Webots R2025a)
 
+Browse [the documentation index](docs/README.md) for architecture, experiments, operations, and historical reports.
+
 Robotis Lab researches a ~25 cm autonomous humanoid with 10 leg DOF. **Simulation first, evidence before hardware, safety independent of AI.** The canonical source repository is `namnx-vn/robotis-lab`; development uses reviewable PRs targeting `master`.
 
 ## Current verified and unverified capabilities
@@ -38,7 +40,7 @@ Every PR to `master` triggers Python offline tests and a native Webots **8 s smo
 
 **The GitHub runner is not the operator's Mac.** It executes Webots R2025a in a pinned container; differences from the local GPU/OS remain possible.
 
-- [Continuous simulation & AI report review workflow](docs/CI_REPORT_FEEDBACK_LOOP.md)
+- [Continuous simulation & AI report review workflow](docs/operations/ci-report-feedback-loop.md)
 - [GitHub Actions — Webots simulation](.github/workflows/simulation.yml)
 - [Python offline CI](.github/workflows/python-tests.yml)
 
@@ -65,7 +67,7 @@ python3 tools/run_balance_matrix.py \
   --pairs 1 --force 0.10 --pulse 0.112 --duration 14
 ```
 
-The pilot does not certify active balance. Review force-applied metadata, measurable tilt response, faults and settling time first; move to matched `--pairs 5` only after review. See [matrix acceptance protocol](docs/BALANCE_MATRIX.md) and [force injection protocol](docs/CONTROLLED_DISTURBANCE.md).
+The pilot does not certify active balance. Review force-applied metadata, measurable tilt response, faults and settling time first; move to matched `--pairs 5` only after review. See [matrix acceptance protocol](docs/experiments/balance-matrix.md) and [force injection protocol](docs/experiments/controlled-disturbance.md).
 
 ## Layout
 
@@ -80,4 +82,4 @@ Read [AGENTS.md](AGENTS.md), [PROJECT_INSTRUCTIONS.md](PROJECT_INSTRUCTIONS.md),
 
 ## Native Webots disturbance pilot in GitHub CI
 
-`.github/workflows/disturbance-pilot.yml` launches the **actual Webots R2025a** controller in a pinned Ubuntu container on every PR to `master`. It runs one bounded matched baseline/balance pair per direction (pitch ±, roll ±) and publishes `balance-pilot-ci-report.json`, `.md`, the simulator console and per-run CSV/JSON as a 30-day artifact. Any `FAULT` or `INCONCLUSIVE` result is made explicit. A workflow marked green means **evidence was recorded and structurally validated**, *not* that PID balance has been proven. Full scientific acceptance still needs >=3 comparable pairs per direction, verified settling and real foot contact. See [CI report feedback loop](docs/CI_REPORT_FEEDBACK_LOOP.md).
+`.github/workflows/disturbance-pilot.yml` launches the **actual Webots R2025a** controller in a pinned Ubuntu container on every PR to `master`. It runs one bounded matched baseline/balance pair per direction (pitch ±, roll ±) and publishes `balance-pilot-ci-report.json`, `.md`, the simulator console and per-run CSV/JSON as a 30-day artifact. Any `FAULT` or `INCONCLUSIVE` result is made explicit. A workflow marked green means **evidence was recorded and structurally validated**, *not* that PID balance has been proven. Full scientific acceptance still needs >=3 comparable pairs per direction, verified settling and real foot contact. See [CI report feedback loop](docs/operations/ci-report-feedback-loop.md).

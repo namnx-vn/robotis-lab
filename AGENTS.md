@@ -3,7 +3,7 @@
 **Project:** RL-H25, 25 cm biped research robot with 10 leg DOF. Canonical code repository: `namnx-vn/robotis-lab`.
 
 ## Start here
-1. Read `README.md`, `docs/ROADMAP.md`, active sprint documentation, `configs/robot.json` and tests (when present).
+1. Read `README.md`, `docs/README.md`, `docs/ROADMAP.md`, active sprint documentation, `configs/robot.json` and tests (when present).
 2. Inspect the Git branch, actual files and ongoing PRs before editing. Reuse existing code; do not replace the architecture wholesale.
 3. For every task report Goal, changed files, commands, executed tests, outstanding risks, acceptance gate and next step. Distinguish mock tests from native Webots physics tests.
 4. Work on short-lived feature/fix branches, with reviewable commits and a PR to `master`. Do not auto-merge a safety-critical change.
@@ -34,5 +34,5 @@ Native Webots R2025a 3D parser/foot contact/dynamics **cannot** be certified by 
 1. Before a new robotics source PR, inspect the most recent `Webots simulation` GitHub Actions report and its exact commit; compare the profile (`smoke` vs `baseline`) to the claimed capability.
 2. After opening a PR, let GitHub Actions run native Webots smoke and offline tests. Download/read the report artifact (`ci-report.json`, profile-specific gate, `simulation.log`, and CSV) before proposing additional controller changes.
 3. After merge, inspect five independent baseline trials on the merged `master` SHA. A green smoke report is **not** P2 balance recovery evidence; reproducible roll/pitch perturbations are still required.
-4. Record observed metrics, first fault timestamp/reason, plausible root cause and next falsifiable test. Do not claim a pass when telemetry is absent/inconclusive. See `docs/CI_REPORT_FEEDBACK_LOOP.md`.
+4. Record observed metrics, first fault timestamp/reason, plausible root cause and next falsifiable test. Do not claim a pass when telemetry is absent/inconclusive. See `docs/operations/ci-report-feedback-loop.md`.
 5. No unattended merge, unsafe automatic PID tuning, hardware commands or secret uploads. An interactive chat cannot itself react instantly to a GitHub webhook; a separate opted-in watch may check new reports periodically.

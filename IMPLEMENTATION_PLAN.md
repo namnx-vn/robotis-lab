@@ -53,7 +53,7 @@ Thiết lập README và `.gitignore` cho `__pycache__`, build outputs, logs/vid
 
 ### Tuần 1 — Define & Audit
 
-- [ ] Viết `docs/requirements.md`: mục tiêu, giới hạn 25 cm, 3 triệu, điều kiện dùng PC, sàn phẳng.
+- [ ] Viết `docs/architecture/requirements.md`: mục tiêu, giới hạn 25 cm, 3 triệu, điều kiện dùng PC, sàn phẳng.
 - [ ] Kiểm kê linh kiện thực tế: Uno, servo, module, dây, nguồn, cảm biến, tool. Ghi part number, điện áp và tình trạng.
 - [ ] Chốt danh sách 10 joint và tên chuẩn (`left_hip_roll`, `left_hip_pitch`, ...).
 - [ ] Viết risk register: rơi robot, servo quá nhiệt, nguồn sụt, đứt dây, sensor sai, AI timeout.
@@ -362,7 +362,7 @@ notes: <facts only>
 1. Tạo repository `robotis-lab` và cấu trúc thư mục.
 2. Cài bản Webots ổn định (theo trang releases chính thức), Python 3 và Git.
 3. Viết danh sách linh kiện thực có: tên, số lượng, điện áp, chân, tình trạng.
-4. Tạo `docs/requirements.md` với định nghĩa RL-H25, hai chân, 10 DOF, sàn 2 m × 2 m, 3 triệu, PC-host.
+4. Tạo `docs/architecture/requirements.md` với định nghĩa RL-H25, hai chân, 10 DOF, sàn 2 m × 2 m, 3 triệu, PC-host.
 5. Tạo `tasks/backlog.md` từ lịch 24 tuần, gắn nhãn P0/P1/P2, dependencies.
 6. Ghi quyết định `ADR-0001`: Simulation-first; AI is not in real-time control loop.
 7. Chạy Webots example robot có sẵn trước khi tự tạo PROTO; chụp log vận hành.
