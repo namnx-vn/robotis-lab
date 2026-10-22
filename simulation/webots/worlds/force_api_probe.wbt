@@ -1,0 +1,35 @@
+#VRML_SIM R2025a utf8
+# Independent physics probe. DO NOT change RLH25.proto or its mechanics to pass.
+WorldInfo {
+  basicTimeStep 16
+}
+Viewpoint {
+  position 1.4 1.2 1.6
+  orientation -0.37 0.88 0.31 1.0
+}
+TexturedBackground {}
+TexturedBackgroundLight {}
+DEF FREE_BLOCK Solid {
+  translation 0 1 0
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.8 0.3 0.2
+        roughness 0.8
+      }
+      geometry Box {
+        size 0.12 0.12 0.12
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.12 0.12 0.12
+  }
+  physics Physics {
+    mass 0.5
+  }
+}
+Robot {
+  controller "force_api_probe"
+  supervisor TRUE
+}
