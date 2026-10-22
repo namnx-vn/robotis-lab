@@ -62,3 +62,11 @@ Artifact từ run `39648900940`, commit `e0ba9c1e453c6927fe73e213b1faa57839b906c
 - **Acceptance:** `NOT_ACCEPTED` cho tới khi kiểm chứng native probe, pilot bốn hướng, >=3 cặp/hướng có thể so sánh, cải thiện peak >=10% trên từng hướng, hồi phục đủ thời gian và foot contact được kiểm tra.
 - **Báo cáo:** [P2.2 Acceptance Report](experiments/p2-2-acceptance-report.md); raw logs/JSON/CSV trong GitHub Actions PR #8, không sửa CSV tay.
 - **Việc cần người vận hành:** review draft PR và xem chân tiếp xúc mặt đất trong Webots Mac; không chạy phần cứng hay bước đi.
+
+### Bằng chứng CI native mới — PR #8, 22/10/2026
+
+- Webots force API độc lập: **PASS 8/8**, đã kiểm tra Physics/gravity, lực ±X/±Z, offset 0/0,04 m, hướng frame; lực tạo mô-men đúng ở vật thể tự do.
+- [Native disturbance CI run 39713137894](https://github.com/namnx-vn/robotis-lab/actions/runs/39713137894): workflow SUCCESS về thu thập bằng chứng, **scientific status INCONCLUSIVE**. Source head `43ec56dd3f7d89edbaa870056c085b9f45af1d5a`, test-merge `ed57598daa33eaea6dc61a953a52592313cf7c70`, binary ghi `Webots R2025a`.
+- Pilot pitch +: baseline 0,00012 rad, balance 0,00016 rad, cùng 0,10 N / 0,112 s / 7 steps, không FAULT; nhỏ hơn ngưỡng 0,008 rad. Chưa có pitch -/roll ± và chưa được chỉnh PID.
+- [Offline tests](https://github.com/namnx-vn/robotis-lab/actions/runs/39713137893): 99/99 PASS. [Webots smoke](https://github.com/namnx-vn/robotis-lab/actions/runs/39713137953): SUCCESS.
+- [Báo cáo đầy đủ trên branch](experiments/p2-2-acceptance-report.md): **NOT_ACCEPTED**. Blocker tiếp theo là kích thích nghiêng quá nhỏ dù đường lực trên vật thể tự do đã xác minh. Chỉ tăng thăm dò lực theo thứ tự được cho phép và kiểm tra dữ liệu an toàn mỗi bước; chưa chạy matrix full, chưa mở P3, chưa thay phần cứng.
