@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import json
+import subprocess
 import os
 from pathlib import Path
 import shutil
@@ -40,6 +41,24 @@ def trial(binary: str, *, mode: str, sim_duration_s: float, timeout_s: float,
     env = os.environ.copy()
     env.update(RL_H25_MODE=mode, RL_H25_RUN_ID=run_id,
                RL_H25_DURATION_S=str(sim_duration_s), RL_H25_LOG_DIR=str(LOGDIR))
+    # Keep provenance of the exact checked-out source and PR test merge.
+    # CI can provide the original PR head independently of GITHUB_SHA.
+    try:
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
+                              capture_output=True, text=True, timeout=5, check=True).stdout.strip()
+    except (subprocess.SubprocessError, OSError):
+        head = "unverified"
+    env.setdefault("RL_H25_BUILD_COMMIT", head)
+    env.setdefault("RL_H25_SOURCE_COMMIT_SHA", head)
+    env.setdefault("RL_H25_TEST_MERGE_SHA", os.getenv("GITHUB_SHA", head))
+    try:
+        v = subprocess.run([binary, "--version"], capture_output=True,
+                           text=True, timeout=10, check=False)
+        version = (v.stdout + " " + v.stderr).strip().replace("\\n", " ")
+    except (subprocess.SubprocessError, OSError):
+        version = ""
+    env.setdefault("RL_H25_WEBOTS_VERSION",
+                   version if "R20" in version and len(version) < 200 else "unverified")
     env.pop('RL_H25_FORCE_FAULT', None)
     for key in list(env):
         if key.startswith('RL_H25_DIST_') or key == 'RL_H25_DISTURBANCE':
