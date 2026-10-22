@@ -49,10 +49,12 @@ def main() -> int:
         if not xvfb:
             raise RuntimeError("headless Linux needs xvfb-run")
         command = [xvfb, "-a"] + command
+    timed_out = False
     try:
         proc = subprocess.run(command, capture_output=True, text=True, timeout=args.timeout)
         stdout = proc.stdout + "\n" + proc.stderr
     except subprocess.TimeoutExpired as exc:
+        timed_out = True
         stdout = (exc.stdout or b"").decode("utf-8", errors="replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
         stdout += "\nTIMEOUT"
     (args.output_dir / "force-api-probe.log").write_text(stdout, encoding="utf-8")
