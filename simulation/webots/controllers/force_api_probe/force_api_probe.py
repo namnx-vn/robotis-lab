@@ -85,6 +85,8 @@ def main() -> None:
                "gravity_displacement_m": y_after - y_before,
                "pulse_steps": pulse_steps, "results": results}
     print("FORCE_API_PROBE_RESULT=" + json.dumps(summary, sort_keys=True), flush=True)
+    # Exit native Webots cleanly instead of leaving a headless batch process running.
+    robot.simulationQuit(0 if ok else 1)
     if not ok:
         raise RuntimeError("Native force-with-offset probe failed: do not tune PID")
 
