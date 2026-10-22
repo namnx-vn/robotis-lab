@@ -57,8 +57,19 @@ def trial(binary: str, *, mode: str, sim_duration_s: float, timeout_s: float,
         version = (v.stdout + " " + v.stderr).strip().replace("\\n", " ")
     except (subprocess.SubprocessError, OSError):
         version = ""
-    env.setdefault("RL_H25_WEBOTS_VERSION",
-                   version if "R20" in version and len(version) < 200 else "unverified")
+    # --version may emit no text in headless/batch Webots builds.
+    # Prefer the installation's own version file when CLI output is absent.
+    if "R20" not in version or len(version) >= 200:
+        home = Path(env.get("WEBOTS_HOME", "")) if env.get("WEBOTS_HOME") else None
+        file = home / "resources/version.txt" if home else None
+        try:
+            value = file.read_text(encoding="utf-8").strip() if file and file.is_file() else ""
+            version = "Webots " + value if value.startswith("R20") else "unverified"
+        except OSError:
+            version = "unverified"
+    elif not version.startswith("Webots "):
+        version = "Webots " + version
+    env.setdefault("RL_H25_WEBOTS_VERSION", version)
     env.pop('RL_H25_FORCE_FAULT', None)
     for key in list(env):
         if key.startswith('RL_H25_DIST_') or key == 'RL_H25_DISTURBANCE':
