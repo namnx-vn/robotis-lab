@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import signal
 import shutil
 import subprocess
 import sys
@@ -32,6 +33,32 @@ def parse_probe_log(text: str) -> dict:
     return result
 
 
+def run_probe_process(command: list[str], *, timeout: float,
+                      env: dict[str, str] | None = None) -> tuple[str, bool, int]:
+    """Run Webots in its own process group and reap the group on timeout.
+
+    Webots' macOS/Linux launchers can start a simulator child that inherits
+    stdout/stderr. Killing only the launcher leaves ``communicate`` waiting
+    for the child's pipe, so a timeout must terminate the whole group.
+    """
+    proc = subprocess.Popen(
+        command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        text=True, env=env, start_new_session=(os.name == "posix"))
+    try:
+        output, _ = proc.communicate(timeout=timeout)
+        return output, False, proc.returncode
+    except subprocess.TimeoutExpired:
+        if os.name == "posix":
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+        else:
+            proc.kill()
+        output, _ = proc.communicate()
+        return output + "\nTIMEOUT", True, proc.returncode
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--webots", default="webots")
@@ -54,22 +81,16 @@ def main() -> int:
     env = os.environ.copy()
     env["RL_H25_FORCE_PROBE_OUT"] = str(raw_path)
     timed_out = False
-    try:
-        proc = subprocess.run(command, capture_output=True, text=True, timeout=args.timeout, env=env)
-        stdout = proc.stdout + "\n" + proc.stderr
-    except subprocess.TimeoutExpired as exc:
-        timed_out = True
-        stdout = (exc.stdout or b"").decode("utf-8", errors="replace") if isinstance(exc.stdout, bytes) else (exc.stdout or "")
-        stdout += "\nTIMEOUT"
+    stdout, timed_out, returncode = run_probe_process(command, timeout=args.timeout, env=env)
     (args.output_dir / "force-api-probe.log").write_text(stdout, encoding="utf-8")
     try:
+        if timed_out:
+            raise ValueError("native Webots process timed out")
         if not raw_path.is_file():
             raise ValueError("native controller did not persist result JSON")
         outcome = parse_probe_log(PREFIX + raw_path.read_text(encoding="utf-8"))
-        if timed_out:
-            raise ValueError("native Webots process timed out even though it emitted a result")
-        if proc.returncode != 0:
-            raise ValueError("native Webots returned nonzero status: " + str(proc.returncode))
+        if returncode != 0:
+            raise ValueError("native Webots returned nonzero status: " + str(returncode))
         (args.output_dir / "force-api-probe.json").write_text(json.dumps(outcome, indent=2) + "\n", encoding="utf-8")
     except (ValueError, json.JSONDecodeError) as exc:
         print("FORCE API PROBE NOT ACCEPTED:", exc, file=sys.stderr)

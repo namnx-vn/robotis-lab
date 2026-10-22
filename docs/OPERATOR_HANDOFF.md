@@ -52,13 +52,13 @@ Artifact từ run `39648900940`, commit `e0ba9c1e453c6927fe73e213b1faa57839b906c
 
 Đã thiết lập tác vụ phát triển **mỗi giờ** tới 07:00 ngày 23/10/2026 giờ Việt Nam; mỗi lượt có thể đọc lại code + CI, chạy kiểm tra và chuẩn bị/cập nhật PR nhỏ để người vận hành review. Tác vụ **không được tự merge**, tự tuning PID, bắt đầu gait, điều khiển phần cứng hoặc nới safety gate. **Không thể bảo đảm tất cả sprint hoàn thành qua một đêm**; mỗi milestone phải dựa trên kết quả thật và phê duyệt phù hợp, không phải số giờ đã chạy.
 
-## Cập nhật triển khai P2.2 ngày 22/10/2026 — PR #8
+## Cập nhật P2.2 ngày 22/10/2026 — PR #8 và kiểm thử native local
 
-- **Draft PR:** https://github.com/namnx-vn/robotis-lab/pull/8; nhánh `fix/p22-supervisor-force-abi`, nền `02fc43a`. Không merge tự động.
-- **Sửa code:** thay Webots R2025a Python wrapper lỗi bằng lời gọi C ABI `wb_supervisor_node_add_force_with_offset` chính xác, `Node._ref` và `ctypes` bốn tham số. Không fallback về Python binding lỗi.
-- **Thử nghiệm mới:** `tools/run_force_api_probe.py` với một vật thể Physics tự do; kiểm tra trọng lực, zero-offset vs nonzero, pitch/roll ±, world-frame force và local-frame offset. CI chặn thử RL-H25 nếu probe không đạt.
-- **Telemetries:** source/test-merge SHA, config/world hash, Webots version khi xác minh được, actual API call count, lực, vận tốc, cross-axis peak, thời điểm FAULT. Analyzer từ chối provenance không xác minh.
-- **Không đổi** PID gains/sign, hình học, ngưỡng tilt 0.45 rad, E-STOP, servo/firmware hoặc P3 gait.
-- **Acceptance:** `NOT_ACCEPTED` cho tới khi kiểm chứng native probe, pilot bốn hướng, >=3 cặp/hướng có thể so sánh, cải thiện peak >=10% trên từng hướng, hồi phục đủ thời gian và foot contact được kiểm tra.
-- **Báo cáo:** [P2.2 Acceptance Report](experiments/p2-2-acceptance-report.md); raw logs/JSON/CSV trong GitHub Actions PR #8, không sửa CSV tay.
-- **Việc cần người vận hành:** review draft PR và xem chân tiếp xúc mặt đất trong Webots Mac; không chạy phần cứng hay bước đi.
+- PR [#8](https://github.com/namnx-vn/robotis-lab/pull/8) đã merge vào `master`, merge SHA `576473200b818c881373067bd3081d22379d92e4`. Workflow disturbance cuối cùng trên head `43ec56dd3f7d89edbaa870056c085b9f45af1d5a` đã hoàn tất: https://github.com/namnx-vn/robotis-lab/actions/runs/39713137894.
+- Webots trên Mac được xác nhận là `R2025a`, bundle version `R2025a38`. Free-body native force probe đạt **8/8** ca, gồm lực ±X/±Z, zero/nonzero offset, body xoay, world-frame force, local-frame offset và gravity. C API adapter đang gọi `wb_supervisor_node_add_force_with_offset` với ABI 4 tham số.
+- Pilot RL-H25 local ở `0.10 N`, `0.112 s`, offset `0.04 m`, đủ pitch ± và roll ±: tất cả 8 trial kết thúc `STAND`, 7 applied steps, không fault; peak tilt `0.00012–0.00016 rad`, dưới ngưỡng `0.008 rad`. Drift tối đa `0.00003 m`; height tối thiểu `0.18296 m`.
+- Thang lực pitch+ được thử riêng sau khi các trial 0.10 N an toàn: `0.15 N` peak baseline/PID `0.00018/0.00024 rad`; `0.20 N` `0.00024/0.00032 rad`. Không fault, drift tối đa `0.00006 m`, nhưng cả hai đều `INCONCLUSIVE`; đã dừng ở `0.20 N`.
+- Trong lần chạy đầu, local runner ghi `webots_version: unverified`; bổ sung phát hiện `Contents/Resources/version.txt` và test. Một lần timeout probe cũng để Webots child giữ output pipe; cập nhật runner để kill/reap cả process group và thêm regression test. Sau thay đổi: verifier, 103 unit tests, compileall, docs links và matrix dry-run đều PASS.
+- **Kết luận P2.2: INCONCLUSIVE / chưa nghiệm thu.** API và dấu lực được kiểm chứng trên vật thể tự do; phản ứng RL-H25 vẫn thấp ít nhất 25 lần so với ngưỡng kích thích, nên không thể kết luận PID phục hồi hoặc sai dấu. Chưa chạy full 3–5 cặp/hướng. P3 gait vẫn **BLOCKED**.
+- **Bằng chứng raw:** ignored `experiments/logs/` có CSV/JSON cho matrix `balance-matrix-20261022T070333Z.json` và calibration `disturbance-pitch-20261022T070429Z.json`, `disturbance-pitch-20261022T070447Z.json`; free-body JSON/log tại `/private/tmp/p22-native-probe/`. Xem [P2.2 Acceptance Report](experiments/p2-2-acceptance-report.md).
+- **Việc cần người vận hành:** kiểm tra trực quan foot contact/slip trong GUI Webots và quyết định liệu force envelope/pulse hoặc mô hình cần hiệu chuẩn lại qua thay đổi được review. Không tuning PID, không gait, không phần cứng khi kích thích chưa đạt gate.
