@@ -26,7 +26,8 @@ Artifact từ run `39648900940`, commit `e0ba9c1e453c6927fe73e213b1faa57839b906c
 | Verdict | INCONCLUSIVE | INCONCLUSIVE |
 
 - Script ngắt đúng sau cặp đầu vì cả hai phản ứng thấp hơn ngưỡng kích thích đo được **0,008 rad**; chưa chạy pitch -1 / roll ±. `ci_evidence_ok=true` chỉ nghĩa là tạo đủ bằng chứng đúng định dạng, **không** chứng minh PID tốt hơn.
-- Không tăng lực vô hạn, không bỏ giới hạn nghiêng 0,45 rad. **Việc cần nghiên cứu tiếp:** kiểm tra hệ trục và ứng dụng lực/torsion, khối lượng/mô-men, tính thích hợp của ngưỡng 0,008 rad; sau đó thử pulse nhỏ được định lượng trên nhánh mô phỏng, có report riêng và giới hạn rõ ràng.
+- Phân tích source + artifact xác định lỗi chính: Python binding của Webots R2025a gọi `addForce` thay cho `addForceWithOffset`; offset 0,04 m bị mất và tham số hệ tọa độ không còn đáng tin cậy. Lỗi upstream này được sửa sau R2025a trong Cyberbotics PR [#6881](https://github.com/cyberbotics/webots/pull/6881). Cần bài test API native tối thiểu để xác nhận đúng build trong CI.
+- Không tăng lực, đổi PID hoặc bỏ giới hạn nghiêng 0,45 rad trước khi sửa/xác minh đường áp lực. Báo cáo debug và kế hoạch P3 chi tiết nằm tại [P2.2 Debug Findings and P3 Implementation Readiness](experiments/p2-2-debug-p3-readiness.md).
 - Vẫn cần kiểm tra trực quan bàn chân với sàn, không xuyên sàn/neo cứng; CI headless CSV chưa thay thế kiểm tra tiếp xúc.
 
 ## Trạng thái sprint
@@ -49,4 +50,4 @@ Artifact từ run `39648900940`, commit `e0ba9c1e453c6927fe73e213b1faa57839b906c
 
 ## Tự động hóa ban đêm
 
-Đã thiết lập tác vụ phát triển **mỗi giờ** tới 07:00 ngày 23/10/2026 giờ Việt Nam; mỗi lượt sẽ đọc lại code + CI, làm các thay đổi mô phỏng nhỏ có tests, cập nhật file này và đăng PR/merge thay đổi đủ an toàn. **Không thể bảo đảm tất cả sprint hoàn thành qua một đêm**; mỗi milestone phải dựa trên kết quả thật, không phải số giờ đã chạy.
+Đã thiết lập tác vụ phát triển **mỗi giờ** tới 07:00 ngày 23/10/2026 giờ Việt Nam; mỗi lượt có thể đọc lại code + CI, chạy kiểm tra và chuẩn bị/cập nhật PR nhỏ để người vận hành review. Tác vụ **không được tự merge**, tự tuning PID, bắt đầu gait, điều khiển phần cứng hoặc nới safety gate. **Không thể bảo đảm tất cả sprint hoàn thành qua một đêm**; mỗi milestone phải dựa trên kết quả thật và phê duyệt phù hợp, không phải số giờ đã chạy.

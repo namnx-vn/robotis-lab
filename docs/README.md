@@ -23,6 +23,7 @@ Tài liệu được nhóm theo **mục đích**, thay vì đặt tất cả và
 - [Standing baseline](experiments/standing-baseline.md) — 5 lần đứng tĩnh
 - [Controlled disturbance](experiments/controlled-disturbance.md) — thử xung lực chuẩn hóa
 - [Balance matrix](experiments/balance-matrix.md) — pitch/roll theo hai chiều và acceptance gate
+- [P2.2 debug and P3 readiness](experiments/p2-2-debug-p3-readiness.md) — root cause của xung lực R2025a, kịch bản xác minh và gate trước gait
 
 ## Operations — CI và quy trình làm việc
 
