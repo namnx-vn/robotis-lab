@@ -98,11 +98,16 @@ def main() -> None:
         "software_version": "rlh25-v0.2",
         "config_sha256": hashlib.sha256(CONFIG_PATH.read_bytes()).hexdigest(),
         "build_commit": os.environ.get("RL_H25_BUILD_COMMIT", "unverified"),
+        "source_commit_sha": os.environ.get("RL_H25_SOURCE_COMMIT_SHA", "unverified"),
+        "test_merge_sha": os.environ.get("RL_H25_TEST_MERGE_SHA", "unverified"),
+        "world_sha256": hashlib.sha256(
+            (PROJECT_ROOT / "simulation/webots/worlds/rl_h25_lab.wbt").read_bytes()).hexdigest(),
+        "simulation_timestep_s": step_ms / 1000.0,
         "created_at_utc": datetime.now(timezone.utc).isoformat(),
         "world": "rl_h25_lab.wbt",
         "controller": "v0.2 baseline hold / IMU outer-loop PID",
         "mode": mode,
-        "webots_version": os.environ.get("WEBOTS_VERSION", "unverified; record installed version manually"),
+        "webots_version": os.environ.get("RL_H25_WEBOTS_VERSION", "unverified"),
         "config": str(CONFIG_PATH.relative_to(PROJECT_ROOT)),
         "fault_injection": fault_injection or None,
         "disturbance": disturbance.metadata() if disturbance else None,
@@ -114,7 +119,10 @@ def main() -> None:
                   "roll_rad", "pitch_rad", "yaw_rad", "root_x_m", "root_y_m",
                   "root_z_m", "root_height_m", "obstacle_m", "gyro_x_rad_s",
                   "gyro_y_rad_s", "gyro_z_rad_s", "pitch_correction_rad",
-                  "roll_correction_rad", "pitch_imu_rate_rad_s", "roll_imu_rate_rad_s"]
+                  "roll_correction_rad", "pitch_imu_rate_rad_s", "roll_imu_rate_rad_s",
+                  "root_velocity_x_m_s", "root_velocity_y_m_s", "root_velocity_z_m_s",
+                  "requested_force_x_n", "requested_force_y_n", "requested_force_z_n",
+                  "applied_force_steps", "pulse_onset_s", "pulse_duration_s", "force_api_mode"]
     fieldnames += [name + "_target_rad" for name in joints]
     fieldnames += [name + "_measured_rad" for name in joints]
     total_steps = 0
@@ -186,6 +194,10 @@ def main() -> None:
                 if disturbance is not None:
                     disturbance.step(now, can_apply=state == "STAND")
                 if now >= log_next:
+                    root_velocity = (robot.getSelf().getVelocity()[:3]
+                                     if disturbance is not None else ("", "", ""))
+                    req_force = (disturbance_spec.force_vector()
+                                 if disturbance_spec is not None else ("", "", ""))
                     record = dict(run_id=run_id, t_s=f"{now:.4f}", dt_s=dt,
                                   mode=mode, state=state, reason=reason, roll_rad=roll,
                                   pitch_rad=pitch, yaw_rad=yaw, root_x_m=x,
@@ -195,7 +207,17 @@ def main() -> None:
                                   pitch_correction_rad=stand.corrections["pitch"],
                                   roll_correction_rad=stand.corrections["roll"],
                                   pitch_imu_rate_rad_s=stand.pitch_pid.filtered_rate,
-                                  roll_imu_rate_rad_s=stand.roll_pid.filtered_rate)
+                                  roll_imu_rate_rad_s=stand.roll_pid.filtered_rate,
+                                  root_velocity_x_m_s=root_velocity[0],
+                                  root_velocity_y_m_s=root_velocity[1],
+                                  root_velocity_z_m_s=root_velocity[2],
+                                  requested_force_x_n=req_force[0],
+                                  requested_force_y_n=req_force[1],
+                                  requested_force_z_n=req_force[2],
+                                  applied_force_steps=(disturbance.applied_steps if disturbance else 0),
+                                  pulse_onset_s=(disturbance_spec.onset_s if disturbance_spec else ""),
+                                  pulse_duration_s=(disturbance_spec.pulse_s if disturbance_spec else ""),
+                                  force_api_mode=(disturbance.force_api.mode if disturbance else ""))
                     record.update({name + "_target_rad": target for name, target in targets.items()})
                     record.update({name + "_measured_rad": value for name, value in measured.items()})
                     writer.writerow(record)

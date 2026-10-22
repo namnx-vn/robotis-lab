@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 from datetime import datetime, timezone
 import json
+import subprocess
 import os
 from pathlib import Path
 import shutil
@@ -40,6 +41,35 @@ def trial(binary: str, *, mode: str, sim_duration_s: float, timeout_s: float,
     env = os.environ.copy()
     env.update(RL_H25_MODE=mode, RL_H25_RUN_ID=run_id,
                RL_H25_DURATION_S=str(sim_duration_s), RL_H25_LOG_DIR=str(LOGDIR))
+    # Keep provenance of the exact checked-out source and PR test merge.
+    # CI can provide the original PR head independently of GITHUB_SHA.
+    try:
+        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
+                              capture_output=True, text=True, timeout=5, check=True).stdout.strip()
+    except (subprocess.SubprocessError, OSError):
+        head = "unverified"
+    env.setdefault("RL_H25_BUILD_COMMIT", head)
+    env.setdefault("RL_H25_SOURCE_COMMIT_SHA", head)
+    env.setdefault("RL_H25_TEST_MERGE_SHA", os.getenv("GITHUB_SHA", head))
+    try:
+        v = subprocess.run([binary, "--version"], capture_output=True,
+                           text=True, timeout=10, check=False)
+        version = (v.stdout + " " + v.stderr).strip().replace("\\n", " ")
+    except (subprocess.SubprocessError, OSError):
+        version = ""
+    # --version may emit no text in headless/batch Webots builds.
+    # Prefer the installation's own version file when CLI output is absent.
+    if "R20" not in version or len(version) >= 200:
+        home = Path(env.get("WEBOTS_HOME", "")) if env.get("WEBOTS_HOME") else None
+        file = home / "resources/version.txt" if home else None
+        try:
+            value = file.read_text(encoding="utf-8").strip() if file and file.is_file() else ""
+            version = "Webots " + value if value.startswith("R20") else "unverified"
+        except OSError:
+            version = "unverified"
+    elif not version.startswith("Webots "):
+        version = "Webots " + version
+    env.setdefault("RL_H25_WEBOTS_VERSION", version)
     env.pop('RL_H25_FORCE_FAULT', None)
     for key in list(env):
         if key.startswith('RL_H25_DIST_') or key == 'RL_H25_DISTURBANCE':

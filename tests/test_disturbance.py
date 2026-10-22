@@ -19,6 +19,15 @@ class FakeSolid:
     def addForceWithOffset(self, f, o, relative): self.calls.append((f,o,relative))
 
 
+class FakeForceAPI:
+    mode = "offline_mock_only"
+
+    def __init__(self, solid): self.solid = solid
+
+    def add(self, force, offset, relative):
+        self.solid.addForceWithOffset(force, offset, relative)
+
+
 class DisturbanceTests(unittest.TestCase):
     def test_disabled_by_default(self):
         self.assertIsNone(DisturbanceSpec.from_env({}))
@@ -28,7 +37,7 @@ class DisturbanceTests(unittest.TestCase):
               'RL_H25_DIST_AXIS':'pitch','RL_H25_DIST_DIRECTION':'-1'})
         self.assertEqual([0,0,-.10], spec.force_vector())
         solid = FakeSolid()
-        inj = DisturbanceInjector(spec, solid)
+        inj = DisturbanceInjector(spec, solid, force_api=FakeForceAPI(solid))
         for t in (0, 3.9, 4.0, 4.016, 4.032, 4.048, 4.064, 4.080, 4.096, 4.112, 4.5):
             inj.step(t, can_apply=True)
         self.assertEqual(7, inj.applied_steps)
@@ -38,7 +47,8 @@ class DisturbanceTests(unittest.TestCase):
 
     def test_fault_gate(self):
         spec = DisturbanceSpec.from_env({'RL_H25_DISTURBANCE':'1'})
-        inj = DisturbanceInjector(spec, FakeSolid())
+        solid = FakeSolid()
+        inj = DisturbanceInjector(spec, solid, force_api=FakeForceAPI(solid))
         inj.step(4.0, can_apply=False)
         self.assertEqual(0, inj.applied_steps)
 
@@ -75,9 +85,16 @@ def fixture(directory:Path, name:str, mode:str, peak:float, fault:bool=False,
                     root_height_m=.183 if not bad else .09,
                     root_x_m=0.,root_z_m=0.))
     meta={'run_id':name,'mode':mode,'result':'controller_exited',
+          'source_commit_sha':'a'*40,
+          'config_sha256':'b'*64,
+          'world_sha256':'c'*64,
+          'simulation_timestep_s':0.016,
+          'webots_version':'Webots R2025a mock-only',
           'fault_injection':None,
           'disturbance':{'axis':'pitch','direction':1,'force_n':.10,'pulse_s':.112,
-                         'offset_m':.04,'onset_s':onset,'applied_steps':7 if inject else 0,
+                         'offset_m':.04,'onset_s':onset,
+                         'force_api_mode':'r2025a_ctypes_force_with_offset',
+                         'applied_steps':7 if inject else 0,
                          'first_application_s':onset if inject else None}}
     p.with_suffix('.json').write_text(json.dumps(meta))
     return p
@@ -126,6 +143,14 @@ class ReportTests(unittest.TestCase):
             result=compare_pairs([(b,c)]*3)
             self.assertEqual('INCONCLUSIVE',result['verdict'])
 
+    def test_missing_provenance_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = fixture(Path(tmp), 'unknown-build', 'balance', .04)
+            meta = json.loads(p.with_suffix('.json').read_text())
+            meta['webots_version'] = 'unverified'
+            p.with_suffix('.json').write_text(json.dumps(meta))
+            self.assertEqual('INVALID', inspect_run(p)['verdict'])
+
     def test_corrupt_csv(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=fixture(Path(tmp),'bad','balance',.04)
@@ -147,6 +172,7 @@ class SupervisorFakeTests(unittest.TestCase):
         class ExperimentRobot(FakeRobot):
             applied = []
             def getSelf(self):return self
+            def getVelocity(self):return [0., 0., 0., 0., 0., 0.]
             def addForceWithOffset(self,f,o,relative): self.applied.append((f,o,relative))
             def step(self,ms):
                 if self.t >= 4.5:return -1
@@ -166,7 +192,8 @@ class SupervisorFakeTests(unittest.TestCase):
                     'RL_H25_LOG_PERIOD_S':'0.016'}
             with patch.dict(sys.modules,{'controller':api}),patch.dict(os.environ,newenv):
                 spec.loader.exec_module(module)
-                module.main()
+                with patch('disturbance.ForceWithOffsetAPI', FakeForceAPI):
+                    module.main()
             meta=json.loads((Path(tmp)/'fake-dist.json').read_text())
             self.assertEqual('STAND',meta['final_state'])
             self.assertGreater(meta['disturbance']['applied_steps'],0)

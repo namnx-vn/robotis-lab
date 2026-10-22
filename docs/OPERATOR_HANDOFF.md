@@ -51,3 +51,14 @@ Artifact từ run `39648900940`, commit `e0ba9c1e453c6927fe73e213b1faa57839b906c
 ## Tự động hóa ban đêm
 
 Đã thiết lập tác vụ phát triển **mỗi giờ** tới 07:00 ngày 23/10/2026 giờ Việt Nam; mỗi lượt có thể đọc lại code + CI, chạy kiểm tra và chuẩn bị/cập nhật PR nhỏ để người vận hành review. Tác vụ **không được tự merge**, tự tuning PID, bắt đầu gait, điều khiển phần cứng hoặc nới safety gate. **Không thể bảo đảm tất cả sprint hoàn thành qua một đêm**; mỗi milestone phải dựa trên kết quả thật và phê duyệt phù hợp, không phải số giờ đã chạy.
+
+## Cập nhật triển khai P2.2 ngày 22/10/2026 — PR #8
+
+- **Draft PR:** https://github.com/namnx-vn/robotis-lab/pull/8; nhánh `fix/p22-supervisor-force-abi`, nền `02fc43a`. Không merge tự động.
+- **Sửa code:** thay Webots R2025a Python wrapper lỗi bằng lời gọi C ABI `wb_supervisor_node_add_force_with_offset` chính xác, `Node._ref` và `ctypes` bốn tham số. Không fallback về Python binding lỗi.
+- **Thử nghiệm mới:** `tools/run_force_api_probe.py` với một vật thể Physics tự do; kiểm tra trọng lực, zero-offset vs nonzero, pitch/roll ±, world-frame force và local-frame offset. CI chặn thử RL-H25 nếu probe không đạt.
+- **Telemetries:** source/test-merge SHA, config/world hash, Webots version khi xác minh được, actual API call count, lực, vận tốc, cross-axis peak, thời điểm FAULT. Analyzer từ chối provenance không xác minh.
+- **Không đổi** PID gains/sign, hình học, ngưỡng tilt 0.45 rad, E-STOP, servo/firmware hoặc P3 gait.
+- **Acceptance:** `NOT_ACCEPTED` cho tới khi kiểm chứng native probe, pilot bốn hướng, >=3 cặp/hướng có thể so sánh, cải thiện peak >=10% trên từng hướng, hồi phục đủ thời gian và foot contact được kiểm tra.
+- **Báo cáo:** [P2.2 Acceptance Report](experiments/p2-2-acceptance-report.md); raw logs/JSON/CSV trong GitHub Actions PR #8, không sửa CSV tay.
+- **Việc cần người vận hành:** review draft PR và xem chân tiếp xúc mặt đất trong Webots Mac; không chạy phần cứng hay bước đi.

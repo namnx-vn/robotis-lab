@@ -9,6 +9,7 @@ import argparse
 import csv
 import json
 import math
+import re
 from pathlib import Path
 
 
@@ -28,6 +29,16 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
         dist = meta.get("disturbance")
         if not isinstance(dist, dict):
             raise ValueError("no_disturbance_metadata")
+        # A source/matrix without force-method provenance cannot certify P2.2.
+        for field in ("source_commit_sha", "config_sha256", "world_sha256"):
+            value = meta.get(field, "")
+            if not isinstance(value, str) or re.fullmatch(r"[a-fA-F0-9]{40,64}", value) is None:
+                raise ValueError("missing_or_invalid_provenance:" + field)
+        if (not str(meta.get("webots_version", "")).startswith("Webots R20") or
+                dist.get("force_api_mode") != "r2025a_ctypes_force_with_offset"):
+            raise ValueError("unverified_webots_build_or_force_api")
+        if not 0 < float(meta.get("simulation_timestep_s", 0)) <= 0.05:
+            raise ValueError("invalid_simulation_timestep")
         if meta.get("result") != "controller_exited":
             raise ValueError("controller_not_completed")
         if meta.get("fault_injection"):
@@ -70,9 +81,14 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
             raise ValueError("root_too_low_before_pulse")
         initial_angle = sum(r[axis + "_rad"] for r in before) / len(before)
         amp = [abs(r[axis + "_rad"] - initial_angle) for r in after]
+        other_axis = "roll" if axis == "pitch" else "pitch"
+        other_initial = sum(r[other_axis + "_rad"] for r in before) / len(before)
+        cross_peak = max(abs(r[other_axis + "_rad"] - other_initial) for r in after)
         peak = max(amp)
         peak_idx = max(range(len(amp)), key=amp.__getitem__)
-        fault = any(r["state"] != "STAND" for r in data)
+        fault_rows = [r for r in data if r["state"] != "STAND"]
+        fault = bool(fault_rows)
+        first_fault_s = fault_rows[0]["t_s"] if fault_rows else None
         min_height = min(r["root_height_m"] for r in data)
         x0, z0 = before[0]["root_x_m"], before[0]["root_z_m"]
         drift = max(math.hypot(r["root_x_m"]-x0, r["root_z_m"]-z0) for r in data)
@@ -91,13 +107,24 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
                    force_n=force, pulse_s=duration, onset_s=onset, offset_m=offset,
                    applied_steps=applied, peak_tilt_change_rad=round(peak, 5),
                    max_planar_drift_m=round(drift, 5), min_root_height_m=round(min_height, 5),
-                   settled_after_onset_s=settle, fault=fault, duration_s=round(times[-1]-times[0],3))
-        if not observed:
-            out["verdict"] = "INCONCLUSIVE"
-            failures.append("no_measurable_excitation")
-        elif fault or min_height < 0.10 or drift >= 0.10:
+                   settled_after_onset_s=settle, fault=fault,
+                   first_fault_s=first_fault_s,
+                   cross_axis_peak_change_rad=round(cross_peak, 6),
+                   peak_signed_tilt_change_rad=round(
+                       after[peak_idx][axis + "_rad"] - initial_angle, 6),
+                   source_commit_sha=meta["source_commit_sha"],
+                   test_merge_sha=meta.get("test_merge_sha", "unverified"),
+                   config_sha256=meta["config_sha256"], world_sha256=meta["world_sha256"],
+                   webots_version=meta["webots_version"],
+                   force_api_mode=dist["force_api_mode"],
+                   simulation_timestep_s=meta["simulation_timestep_s"],
+                   duration_s=round(times[-1]-times[0],3))
+        if fault or min_height < 0.10 or drift >= 0.10:
             out["verdict"] = "FAIL"
             failures.append("fault_fall_or_large_drift")
+        elif not observed:
+            out["verdict"] = "INCONCLUSIVE"
+            failures.append("no_measurable_excitation")
         elif settle is None:
             out["verdict"] = "FAIL"
             failures.append("did_not_settle_in_5s")
@@ -114,7 +141,9 @@ def compare_pairs(pairs: list[tuple[Path, Path]]) -> dict:
         base = inspect_run(b, intended_mode="baseline")
         balance = inspect_run(c, intended_mode="balance")
         compatible = (all(k in base and k in balance and base[k] == balance[k]
-                          for k in ("axis", "direction", "force_n", "pulse_s", "onset_s", "offset_m"))
+                          for k in ("axis", "direction", "force_n", "pulse_s", "onset_s", "offset_m",
+                                    "source_commit_sha", "config_sha256", "world_sha256",
+                                    "webots_version", "force_api_mode", "simulation_timestep_s"))
                       and abs(base.get("applied_steps", -999)-balance.get("applied_steps", 999)) <= 1)
         reports.append({"baseline": base, "balance": balance, "comparable": compatible})
     ids = [v[mode].get("run_id") for v in reports for mode in ("baseline", "balance")]
@@ -124,9 +153,10 @@ def compare_pairs(pairs: list[tuple[Path, Path]]) -> dict:
              p["balance"]["verdict"] in ("RECOVERED", "FAIL")]
     # Success requires at least 3 pairs (5 preferred), all balance recover,
     # and a measurable improvement in peak response, not merely STAND once.
-    if len(valid) < 3 or not distinct:
+    if len(valid) < 3 or len(valid) != len(pairs) or not distinct:
         verdict = "INCONCLUSIVE"
-    elif any(p["balance"]["verdict"] != "RECOVERED" for p in valid):
+    elif any(p[mode]["verdict"] != "RECOVERED" for p in valid
+             for mode in ("baseline", "balance")):
         verdict = "FAIL"
     else:
         base_mean = sum(p["baseline"]["peak_tilt_change_rad"] for p in valid) / len(valid)
