@@ -49,9 +49,13 @@ def main() -> int:
         if not xvfb:
             raise RuntimeError("headless Linux needs xvfb-run")
         command = [xvfb, "-a"] + command
+    raw_path = (args.output_dir / "force-api-probe-raw.json").resolve()
+    raw_path.unlink(missing_ok=True)  # never consume evidence from an older run
+    env = os.environ.copy()
+    env["RL_H25_FORCE_PROBE_OUT"] = str(raw_path)
     timed_out = False
     try:
-        proc = subprocess.run(command, capture_output=True, text=True, timeout=args.timeout)
+        proc = subprocess.run(command, capture_output=True, text=True, timeout=args.timeout, env=env)
         stdout = proc.stdout + "\n" + proc.stderr
     except subprocess.TimeoutExpired as exc:
         timed_out = True
@@ -59,7 +63,9 @@ def main() -> int:
         stdout += "\nTIMEOUT"
     (args.output_dir / "force-api-probe.log").write_text(stdout, encoding="utf-8")
     try:
-        outcome = parse_probe_log(stdout)
+        if not raw_path.is_file():
+            raise ValueError("native controller did not persist result JSON")
+        outcome = parse_probe_log(PREFIX + raw_path.read_text(encoding="utf-8"))
         if timed_out:
             raise ValueError("native Webots process timed out even though it emitted a result")
         if proc.returncode != 0:
