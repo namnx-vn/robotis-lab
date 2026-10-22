@@ -1,6 +1,6 @@
 # P2.2 Acceptance Report — Controlled Disturbance & Active Balance Recovery
 
-**Status: NOT_ACCEPTED (provisional; update only from native evidence).**  
+**Status: NOT_ACCEPTED — native force API repaired and calibrated, but robot disturbance remains subthreshold.**  
 **Date:** 2026-10-22  
 **Scope:** Webots-only compatibility, telemetry and regression tests. No hardware, PID gain/sign, robot mechanics, gait or safety-limit changes.
 
@@ -59,18 +59,43 @@ python3 tools/run_balance_matrix.py --webots /Applications/Webots.app/Contents/M
 
 If a direction is `INCONCLUSIVE`, `FAIL` or has unexplained drift/fault, stop and inspect raw data before adjusting anything.
 
+## Verified new native CI evidence (2026-10-22)
+
+The exact PR head **`43ec56dd3f7d89edbaa870056c085b9f45af1d5a`** was tested as GitHub Actions **test merge** `ed57598daa33eaea6dc61a953a52592313cf7c70` in `cyberbotics/webots:R2025a-ubuntu22.04`, with the actual Webots installation reporting `Webots R2025a`. Source SHA and test-merge SHA are now separate telemetry fields.
+
+- [Native disturbance pilot run 39713137894](https://github.com/namnx-vn/robotis-lab/actions/runs/39713137894) — GitHub Actions workflow **SUCCESS**, but **scientific status INCONCLUSIVE**. Raw JSON/CSV/simulator/probe logs are in the artifact attached to this exact run.
+- [Python offline validation run 39713137893](https://github.com/namnx-vn/robotis-lab/actions/runs/39713137893) — **SUCCESS**, 99 Python unit tests passed; compileall passed.
+- [Native Webots smoke run 39713137953](https://github.com/namnx-vn/robotis-lab/actions/runs/39713137953) — **SUCCESS**. Smoke is not balance acceptance.
+
+**Independent native force probe PASSED 8/8 checks** on a free Physics body, including ±X/±Z, zero vs 0.04 m offset, world-force and local-offset rotated frames. It observed a gravity-only `-0.01506816 m` Y displacement over three simulation steps. With zero offset, measured angular velocity was zero for the two tested vectors; with 0.04 m offset, intended rotation was approximately ±3.3975 rad/s. This demonstrates that the C offset API physically applies the intended wrench on the independent test body, not yet that RL-H25 recovers from it.
+
+**RL-H25 pilot — native telemetry, pitch +1 only:**
+
+| Metric | Baseline | Balance PID |
+|---|---:|---:|
+| Run ID | `baseline-20261022T024613Z-01-79e363` | `balance-20261022T024617Z-01-11101f` |
+| 0.10 N, 0.112 s at +0.04 m offset | 7 applied steps | 7 applied steps |
+| Peak pitch change from pre-pulse mean | **0.00012 rad** | **0.00016 rad** |
+| Peak cross-axis change | 0 rad (rounded) | 0 rad (rounded) |
+| Maximum root planar drift | 0.00002 m | 0.00003 m |
+| Minimum root height | 0.18296 m | 0.18296 m |
+| FAULT | None | None |
+| Run verdict | `INCONCLUSIVE` (insufficient excitation) | `INCONCLUSIVE` (insufficient excitation) |
+
+The paired run has matching schedule, API mode, source/config/world hashes, Webots version and 7 recorded C calls. Both modes stayed in `STAND`; neither reached the required **0.008 rad** perturbation. The analyzer correctly rejected scientific acceptance and stopped the matrix *before* pitch -1 / roll ±. The fact that PID's tiny measured peak is larger than baseline's is **not** a valid conclusion about PID stability in this unexcited trial. CI passing here means reliable evidence collection (`ci_evidence_ok=true`), not a balance recovery pass (`scientific_balance_certified=false`).
+
 ## Scientific acceptance gate — NOT MET
 
 | Required evidence | Current evidence |
 |---|---|
-| Native C force-with-offset physics on a free body and world/local-frame signs | PENDING PR CI |
-| Four directions: pitch ±, roll ± | PENDING |
+| Native C force-with-offset physics on a free body and world/local-frame signs | **PASS**: 8/8 native checks, run 39713137894 |
+| Four directions: pitch ±, roll ± | **NOT MET**: pitch + only; early stop is intentional |
 | >=3 independently valid paired runs per direction (5 preferred) | PENDING |
-| Every trial peak response >=0.008 rad, initial target-axis tilt <0.08 rad | PENDING |
+| Every trial peak response >=0.008 rad, initial target-axis tilt <0.08 rad | **NOT MET**: 0.00012/0.00016 rad pitch+; no measurable excitation |
 | No FAULT, fall, root-height loss, unacceptable drift | PENDING |
 | Settle within 0.025 rad for >=0.8s within 5s | PENDING |
 | >=10% mean peak reduction for PID vs baseline **per direction** | PENDING |
-| Independent run IDs, matching force schedule, source/config/world/version provenance | PENDING |
+| Independent run IDs, matching force schedule, source/config/world/version provenance | PASS for one pitch+ pair only; insufficient full matrix |
 | Foot contact, no interpenetration, anchoring or unexplained slip | PENDING_OPERATOR_VISUAL_CHECK |
 
 The acceptance matrix must retain failed runs, first-fault times, CSV/JSON/console logs and run IDs. **No `ACCEPTED` claim until all mandatory evidence is present.** P3 gait is blocked.
@@ -79,4 +104,4 @@ The acceptance matrix must retain failed runs, first-fault times, CSV/JSON/conso
 
 **Risks:** Native C ABI must be checked on the exact installed build; the free-body diagnostic validates injection but does not validate robot contacts. Controller motors are idealized, friction uncertain and sensor noise omitted. A failed native probe blocks force calibration and PID tuning.
 
-**Next action:** Inspect the native free-body probe artifact from PR #8 at its exact test-merge SHA, repair any failures first; if it passes, inspect one bounded four-direction pilot, **without automatically increasing force**. Run the full paired matrix only after pilots show safe measurable excitation and operator confirms foot contact. No hardware work or P3 transition.
+**Next action:** Force path is now verified by free-body native evidence, but RL-H25 remains underexcited. Diagnose whether strong ideal joint holding/contact physics masks body tilt; if appropriate within the existing validated safety envelope, perform one carefully monitored 0.15 N pitch+ pilot, then 0.20 N only if the preceding data remain safe and trustworthy. Do not tune PID or run the full matrix until delivered rotational excitation >=0.008 rad is verified. Inspect all root/joint/cross-axis traces and require operator foot-contact confirmation. No hardware work or P3 transition.
