@@ -19,6 +19,15 @@ class FakeSolid:
     def addForceWithOffset(self, f, o, relative): self.calls.append((f,o,relative))
 
 
+class FakeForceAPI:
+    mode = "offline_mock_only"
+
+    def __init__(self, solid): self.solid = solid
+
+    def add(self, force, offset, relative):
+        self.solid.addForceWithOffset(force, offset, relative)
+
+
 class DisturbanceTests(unittest.TestCase):
     def test_disabled_by_default(self):
         self.assertIsNone(DisturbanceSpec.from_env({}))
@@ -28,7 +37,7 @@ class DisturbanceTests(unittest.TestCase):
               'RL_H25_DIST_AXIS':'pitch','RL_H25_DIST_DIRECTION':'-1'})
         self.assertEqual([0,0,-.10], spec.force_vector())
         solid = FakeSolid()
-        inj = DisturbanceInjector(spec, solid)
+        inj = DisturbanceInjector(spec, solid, force_api=FakeForceAPI(solid))
         for t in (0, 3.9, 4.0, 4.016, 4.032, 4.048, 4.064, 4.080, 4.096, 4.112, 4.5):
             inj.step(t, can_apply=True)
         self.assertEqual(7, inj.applied_steps)
@@ -38,7 +47,8 @@ class DisturbanceTests(unittest.TestCase):
 
     def test_fault_gate(self):
         spec = DisturbanceSpec.from_env({'RL_H25_DISTURBANCE':'1'})
-        inj = DisturbanceInjector(spec, FakeSolid())
+        solid = FakeSolid()
+        inj = DisturbanceInjector(spec, solid, force_api=FakeForceAPI(solid))
         inj.step(4.0, can_apply=False)
         self.assertEqual(0, inj.applied_steps)
 
@@ -166,7 +176,8 @@ class SupervisorFakeTests(unittest.TestCase):
                     'RL_H25_LOG_PERIOD_S':'0.016'}
             with patch.dict(sys.modules,{'controller':api}),patch.dict(os.environ,newenv):
                 spec.loader.exec_module(module)
-                module.main()
+                with patch('disturbance.ForceWithOffsetAPI', FakeForceAPI):
+                    module.main()
             meta=json.loads((Path(tmp)/'fake-dist.json').read_text())
             self.assertEqual('STAND',meta['final_state'])
             self.assertGreater(meta['disturbance']['applied_steps'],0)
