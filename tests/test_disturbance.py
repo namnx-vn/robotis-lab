@@ -85,9 +85,16 @@ def fixture(directory:Path, name:str, mode:str, peak:float, fault:bool=False,
                     root_height_m=.183 if not bad else .09,
                     root_x_m=0.,root_z_m=0.))
     meta={'run_id':name,'mode':mode,'result':'controller_exited',
+          'source_commit_sha':'a'*40,
+          'config_sha256':'b'*64,
+          'world_sha256':'c'*64,
+          'simulation_timestep_s':0.016,
+          'webots_version':'Webots R2025a mock-only',
           'fault_injection':None,
           'disturbance':{'axis':'pitch','direction':1,'force_n':.10,'pulse_s':.112,
-                         'offset_m':.04,'onset_s':onset,'applied_steps':7 if inject else 0,
+                         'offset_m':.04,'onset_s':onset,
+                         'force_api_mode':'r2025a_ctypes_force_with_offset',
+                         'applied_steps':7 if inject else 0,
                          'first_application_s':onset if inject else None}}
     p.with_suffix('.json').write_text(json.dumps(meta))
     return p
@@ -135,6 +142,14 @@ class ReportTests(unittest.TestCase):
             c.with_suffix('.json').write_text(json.dumps(meta))
             result=compare_pairs([(b,c)]*3)
             self.assertEqual('INCONCLUSIVE',result['verdict'])
+
+    def test_missing_provenance_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = fixture(Path(tmp), 'unknown-build', 'balance', .04)
+            meta = json.loads(p.with_suffix('.json').read_text())
+            meta['webots_version'] = 'unverified'
+            p.with_suffix('.json').write_text(json.dumps(meta))
+            self.assertEqual('INVALID', inspect_run(p)['verdict'])
 
     def test_corrupt_csv(self):
         with tempfile.TemporaryDirectory() as tmp:
