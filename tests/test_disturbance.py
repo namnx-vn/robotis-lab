@@ -157,6 +157,7 @@ class SupervisorFakeTests(unittest.TestCase):
         class ExperimentRobot(FakeRobot):
             applied = []
             def getSelf(self):return self
+            def getVelocity(self):return [0., 0., 0., 0., 0., 0.]
             def addForceWithOffset(self,f,o,relative): self.applied.append((f,o,relative))
             def step(self,ms):
                 if self.t >= 4.5:return -1
