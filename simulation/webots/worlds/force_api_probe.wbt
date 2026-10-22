@@ -2,13 +2,14 @@
 # Independent physics probe. DO NOT change RLH25.proto or its mechanics to pass.
 WorldInfo {
   basicTimeStep 16
+  gravity 9.81
+  coordinateSystem "NUE"
 }
 Viewpoint {
   position 1.4 1.2 1.6
   orientation -0.37 0.88 0.31 1.0
 }
-TexturedBackground {}
-TexturedBackgroundLight {}
+DirectionalLight { direction -0.5 -1 -0.5 }
 DEF FREE_BLOCK Solid {
   translation 0 1 0
   children [
@@ -27,6 +28,7 @@ DEF FREE_BLOCK Solid {
   }
   physics Physics {
     mass 0.5
+    density -1
   }
 }
 Robot {
