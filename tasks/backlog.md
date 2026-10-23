@@ -4,6 +4,7 @@
 - [x] Webots R2025a parser and 10 DOF geometry seen running on operator macOS.
 - [x] Add IMU/gyro/accelerometer/GPS/camera/distance telemetry and Physics.
 - [ ] Visually verify bounding boxes, both foot contacts and absence of false static anchoring in Webots.
+- [ ] **P2-CONTACT-001 (operator, first):** neutral baseline >=30 s in Webots R2025a with contact points/bounding objects visible; capture screenshots and run_id/CSV/JSON, verify both feet, no penetration/slip/anchoring. Native visual acceptance UNVERIFIED.
 
 ## P2.1 — Static standing baseline (automated gate passed)
 - [x] Bounded IMU pitch/roll PID implemented (offline tests; native recovery unverified).
@@ -22,6 +23,7 @@
 - [ ] Confirm surface contacts and COM dynamics in GUI; maintain 0.45 rad hard FAULT limit.
 
 ## P3 — Weight shift and gait (BLOCKED)
+- [ ] **P3-001 (offline-only PR):** six-phase synthetic joint waveform + unit tests; review & offline CI required. NO connection to Webots/motors, no claim of foot lift or walking.
 - [ ] Gate: >=3 matched comparable pairs **for each of four directions**, >=10% lower peak tilt with balance, no FAULT and measured recovery; validate contact/friction.
 - [ ] Only after gate approval: supported weight shift, then single simulation step with contact logs.
 
