@@ -50,23 +50,8 @@ def main() -> None:
     if step_ms <= 0:
         raise RuntimeError("invalid Webots time step")
     contact_evidence = ContactEvidence() if contact_enabled else None
-    contact_names: dict[int, str] = {}
     if contact_evidence is not None:
-        for def_name, solid_name in (
-            ("LEFT_FOOT", "left_ankle_roll_link"),
-            ("RIGHT_FOOT", "right_ankle_roll_link"),
-        ):
-            foot = robot_node.getFromProtoDef(def_name)
-            if foot is None:
-                raise RuntimeError(f"missing contact evidence node {def_name}")
-            contact_names[foot.getId()] = solid_name
         robot_node.enableContactPointsTracking(step_ms, True)
-
-    def contact_node_name(node_id: int) -> str:
-        try:
-            return contact_names[node_id]
-        except KeyError as error:
-            raise RuntimeError(f"unexpected contact solid node {node_id}") from error
     sensors: dict[str, object] = {}
     motors: dict[str, object] = {}
     joints = {name: JointConfig.from_dict(raw) for name, raw in cfg["joints"].items()}
@@ -220,9 +205,7 @@ def main() -> None:
                     disturbance.step(now, can_apply=state == "STAND")
                 if now >= log_next:
                     if contact_evidence is not None:
-                        contact_evidence.observe(
-                            robot_node.getContactPoints(True), contact_node_name
-                        )
+                        contact_evidence.observe(robot_node.getContactPoints(True))
                     root_velocity = (robot.getSelf().getVelocity()[:3]
                                      if disturbance is not None else ("", "", ""))
                     req_force = (disturbance_spec.force_vector()

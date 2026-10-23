@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Iterable
+from collections.abc import Iterable
 from typing import Any
 
 
@@ -14,14 +14,13 @@ class ContactEvidence:
         self.max_contact_count = 0
         self.min_world_y_m = math.inf
         self.max_world_y_m = -math.inf
-        self.solid_counts: dict[str, int] = {}
+        self.solid_counts: dict[int, int] = {}
         self.first_contacts: list[dict[str, Any]] | None = None
         self.last_contacts: list[dict[str, Any]] = []
 
     def observe(
         self,
         contact_points: Iterable[object],
-        node_name_for_id: Callable[[int], str],
     ) -> None:
         contacts = []
         for contact in contact_points:
@@ -33,19 +32,15 @@ class ContactEvidence:
                 or type(node_id) is not int
             ):
                 raise ValueError("invalid Webots contact point")
-            name = node_name_for_id(node_id)
-            if not isinstance(name, str) or not name:
-                raise ValueError("contact point has no associated solid name")
             contacts.append(
                 {
                     "point_world_m": [round(value, 9) for value in point],
                     "solid_node_id": node_id,
-                    "solid_name": name,
                 }
             )
             self.min_world_y_m = min(self.min_world_y_m, point[1])
             self.max_world_y_m = max(self.max_world_y_m, point[1])
-            self.solid_counts[name] = self.solid_counts.get(name, 0) + 1
+            self.solid_counts[node_id] = self.solid_counts.get(node_id, 0) + 1
 
         count = len(contacts)
         self.sample_count += 1
@@ -66,8 +61,10 @@ class ContactEvidence:
             "samples_with_contacts": self.samples_with_contacts,
             "min_contact_count": self.min_contact_count,
             "max_contact_count": self.max_contact_count,
-            "contact_solid_names": sorted(self.solid_counts),
-            "contact_observations_by_solid": dict(sorted(self.solid_counts.items())),
+            "contact_solid_node_ids": sorted(self.solid_counts),
+            "contact_observations_by_solid_node_id": {
+                str(node_id): count for node_id, count in sorted(self.solid_counts.items())
+            },
             "min_world_y_m": round(self.min_world_y_m, 9) if has_points else None,
             "max_world_y_m": round(self.max_world_y_m, 9) if has_points else None,
             "first_contacts": self.first_contacts or [],

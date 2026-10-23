@@ -41,14 +41,6 @@ class FakeDistance(FakeSensor):
     def getValue(self): return 0.55
 
 
-class FakeSolid:
-    def __init__(self, node_id):
-        self.node_id = node_id
-
-    def getId(self):
-        return self.node_id
-
-
 class FakeContactPoint:
     def __init__(self, point, node_id):
         self.point = point
@@ -82,9 +74,6 @@ class FakeRobot:
 
 class FakeContactRobot(FakeRobot):
     def getSelf(self): return self
-    def getFromProtoDef(self, def_name):
-        ids = {"LEFT_FOOT": 11, "RIGHT_FOOT": 12}
-        return FakeSolid(ids[def_name])
     def enableContactPointsTracking(self, timestep, include_descendants):
         self.contact_tracking = (timestep, include_descendants)
     def getContactPoints(self, include_descendants):
@@ -133,8 +122,8 @@ class ControllerFakeTests(unittest.TestCase):
                     self.assertNotEqual(0.0, float(rows[-1]["left_ankle_pitch_target_rad"]))
             if contact_evidence:
                 self.assertEqual(
-                    ["left_ankle_roll_link", "right_ankle_roll_link"],
-                    record["contact_evidence"]["contact_solid_names"],
+                    [11, 12],
+                    record["contact_evidence"]["contact_solid_node_ids"],
                 )
                 self.assertGreater(record["contact_evidence"]["sample_count"], 0)
             return record

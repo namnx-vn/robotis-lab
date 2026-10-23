@@ -49,10 +49,7 @@ def link_solid(name: str, translation: str, size: tuple[float, float, float],
         pieces.append(nested)
     children = "\n".join(shift(piece, 4) for piece in pieces)
     contact = '  contactMaterial "foot_grip"\n' if name.endswith("ankle_roll_link") else ""
-    definition = "DEF LEFT_FOOT " if name == "left_ankle_roll_link" else (
-        "DEF RIGHT_FOOT " if name == "right_ankle_roll_link" else ""
-    )
-    return f'''{definition}Solid {{
+    return f'''Solid {{
   translation {translation}
   name "{name}"
 {contact.rstrip()}
