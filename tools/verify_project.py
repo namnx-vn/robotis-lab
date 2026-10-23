@@ -26,6 +26,8 @@ assert 'EXTERNPROTO "../protos/RLH25.proto"' in world
 assert re.search(r"(?m)^\s*gravity\s+9\.81\s*$", world), "world gravity must be explicitly 9.81"
 assert re.search(r"(?m)^\s*coulombFriction\s*\[\s*1\.1\s*\]", world), "world friction must be 1.1"
 assert proto.count('contactMaterial "foot_grip"') == 2
+assert proto.count("DEF LEFT_FOOT Solid") == 1
+assert proto.count("DEF RIGHT_FOOT Solid") == 1
 assert "physics Physics { density -1 mass 0.14 }" in proto
 assert proto.count("HingeJoint {") == 10
 assert proto.count("RotationalMotor {") == 10

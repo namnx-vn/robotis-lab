@@ -41,20 +41,12 @@ class FakeDistance(FakeSensor):
     def getValue(self): return 0.55
 
 
-class FakeField:
-    def __init__(self, value):
-        self.value = value
-
-    def getSFString(self):
-        return self.value
-
-
 class FakeSolid:
-    def __init__(self, name):
-        self.name = name
+    def __init__(self, node_id):
+        self.node_id = node_id
 
-    def getField(self, name):
-        return FakeField(self.name) if name == "name" else None
+    def getId(self):
+        return self.node_id
 
 
 class FakeContactPoint:
@@ -90,6 +82,9 @@ class FakeRobot:
 
 class FakeContactRobot(FakeRobot):
     def getSelf(self): return self
+    def getFromProtoDef(self, def_name):
+        ids = {"LEFT_FOOT": 11, "RIGHT_FOOT": 12}
+        return FakeSolid(ids[def_name])
     def enableContactPointsTracking(self, timestep, include_descendants):
         self.contact_tracking = (timestep, include_descendants)
     def getContactPoints(self, include_descendants):
@@ -97,11 +92,6 @@ class FakeContactRobot(FakeRobot):
             FakeContactPoint((-0.03, 0.0, 0.0), 11),
             FakeContactPoint((0.03, 0.0, 0.0), 12),
         ]
-    def getFromId(self, node_id):
-        names = {11: "left_ankle_roll_link", 12: "right_ankle_roll_link"}
-        return FakeSolid(names[node_id])
-
-
 class ControllerFakeTests(unittest.TestCase):
     def run_case(self, injection, expected, mode="baseline", nonzero_imu=False,
                  contact_evidence=False):

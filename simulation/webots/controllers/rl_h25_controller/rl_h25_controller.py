@@ -52,17 +52,21 @@ def main() -> None:
     contact_evidence = ContactEvidence() if contact_enabled else None
     contact_names: dict[int, str] = {}
     if contact_evidence is not None:
+        for def_name, solid_name in (
+            ("LEFT_FOOT", "left_ankle_roll_link"),
+            ("RIGHT_FOOT", "right_ankle_roll_link"),
+        ):
+            foot = robot_node.getFromProtoDef(def_name)
+            if foot is None:
+                raise RuntimeError(f"missing contact evidence node {def_name}")
+            contact_names[foot.getId()] = solid_name
         robot_node.enableContactPointsTracking(step_ms, True)
 
     def contact_node_name(node_id: int) -> str:
-        if node_id not in contact_names:
-            node = robot.getFromId(node_id)
-            field = node.getField("name") if node is not None else None
-            name = field.getSFString() if field is not None else ""
-            if not name:
-                raise RuntimeError(f"cannot resolve contact solid node {node_id}")
-            contact_names[node_id] = name
-        return contact_names[node_id]
+        try:
+            return contact_names[node_id]
+        except KeyError as error:
+            raise RuntimeError(f"unexpected contact solid node {node_id}") from error
     sensors: dict[str, object] = {}
     motors: dict[str, object] = {}
     joints = {name: JointConfig.from_dict(raw) for name, raw in cfg["joints"].items()}

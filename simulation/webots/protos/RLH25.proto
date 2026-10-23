@@ -220,7 +220,7 @@ PROTO RLH25 [
                                 }
                                 PositionSensor { name "left_ankle_roll_sensor" }
                               ]
-                              endPoint Solid {
+                              endPoint DEF LEFT_FOOT Solid {
                                 translation 0 0 0
                                 name "left_ankle_roll_link"
                                 contactMaterial "foot_grip"
@@ -420,7 +420,7 @@ PROTO RLH25 [
                                 }
                                 PositionSensor { name "right_ankle_roll_sensor" }
                               ]
-                              endPoint Solid {
+                              endPoint DEF RIGHT_FOOT Solid {
                                 translation 0 0 0
                                 name "right_ankle_roll_link"
                                 contactMaterial "foot_grip"
