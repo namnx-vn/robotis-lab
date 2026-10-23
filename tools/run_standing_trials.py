@@ -23,6 +23,36 @@ WORLD = ROOT / 'simulation/webots/worlds/rl_h25_lab.wbt'
 LOGDIR = ROOT / 'experiments/logs'
 
 
+def read_webots_version(binary: str, env: dict[str, str]) -> str:
+    """Read exact version metadata from Webots home or a macOS app bundle."""
+    roots = []
+    if env.get('WEBOTS_HOME'):
+        roots.append(Path(env['WEBOTS_HOME']))
+    try:
+        executable = Path(binary).resolve()
+        if len(executable.parents) > 1 and executable.parents[1].name == 'Contents':
+            roots.append(executable.parents[1])
+    except OSError:
+        pass
+    for root in roots:
+        for relative in ('resources/version.txt', 'Resources/version.txt'):
+            version_file = root / relative
+            try:
+                value = version_file.read_text(encoding='utf-8').strip()
+            except OSError:
+                continue
+            if value.startswith('R20'):
+                return 'Webots ' + value
+    try:
+        version = subprocess.run([binary, '--version'], capture_output=True,
+                                  text=True, timeout=10, check=False)
+        output = (version.stdout + ' ' + version.stderr).strip().replace('\\n', ' ')
+    except (subprocess.SubprocessError, OSError):
+        output = ''
+    return ('Webots ' + output if output.startswith('R20') else
+            output if output.startswith('Webots R20') else 'unverified')
+
+
 def trial(binary: str, *, mode: str, sim_duration_s: float, timeout_s: float,
           number: int, graphics: bool = False, extra_env: dict | None = None) -> Path:
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
@@ -51,25 +81,7 @@ def trial(binary: str, *, mode: str, sim_duration_s: float, timeout_s: float,
     env.setdefault("RL_H25_BUILD_COMMIT", head)
     env.setdefault("RL_H25_SOURCE_COMMIT_SHA", head)
     env.setdefault("RL_H25_TEST_MERGE_SHA", os.getenv("GITHUB_SHA", head))
-    try:
-        v = subprocess.run([binary, "--version"], capture_output=True,
-                           text=True, timeout=10, check=False)
-        version = (v.stdout + " " + v.stderr).strip().replace("\\n", " ")
-    except (subprocess.SubprocessError, OSError):
-        version = ""
-    # --version may emit no text in headless/batch Webots builds.
-    # Prefer the installation's own version file when CLI output is absent.
-    if "R20" not in version or len(version) >= 200:
-        home = Path(env.get("WEBOTS_HOME", "")) if env.get("WEBOTS_HOME") else None
-        file = home / "resources/version.txt" if home else None
-        try:
-            value = file.read_text(encoding="utf-8").strip() if file and file.is_file() else ""
-            version = "Webots " + value if value.startswith("R20") else "unverified"
-        except OSError:
-            version = "unverified"
-    elif not version.startswith("Webots "):
-        version = "Webots " + version
-    env.setdefault("RL_H25_WEBOTS_VERSION", version)
+    env.setdefault("RL_H25_WEBOTS_VERSION", read_webots_version(binary, env))
     env.pop('RL_H25_FORCE_FAULT', None)
     for key in list(env):
         if key.startswith('RL_H25_DIST_') or key == 'RL_H25_DISTURBANCE':
