@@ -8,15 +8,14 @@ WorldInfo {
   ]
   title "Robotis Lab — RL-H25 v0.2 Standing & Balance"
   basicTimeStep 16
+  gravity 9.81
   coordinateSystem "NUE"
   randomSeed 4
   contactProperties [
     ContactProperties {
       material1 "floor"
       material2 "foot_grip"
-      coulombFriction [
-        1.1
-      ]
+      coulombFriction [ 1.1 ]
       bounce 0
     }
   ]
