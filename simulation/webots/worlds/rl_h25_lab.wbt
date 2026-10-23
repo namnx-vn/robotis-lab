@@ -15,9 +15,7 @@ WorldInfo {
     ContactProperties {
       material1 "floor"
       material2 "foot_grip"
-      coulombFriction [
-        1.1
-      ]
+      coulombFriction [ 1.1 ]
       bounce 0
     }
   ]
