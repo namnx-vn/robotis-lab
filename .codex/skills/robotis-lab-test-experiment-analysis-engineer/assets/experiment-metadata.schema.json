@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://robotis-lab.example/schemas/experiment-metadata-1.schema.json",
+  "title": "RL-H25 Experiment Metadata",
+  "description": "Null is allowed for unknown fields in planning drafts, but blocks scientific PASS when required evidence is absent.",
+  "type": "object",
+  "required": ["run_id", "timestamp", "git_commit", "webots_version", "controller_version", "robot_config", "scenario", "test_conditions", "expected_result", "observed_result", "metrics", "pass_fail_status", "notes"],
+  "properties": {
+    "run_id": {"type": ["string", "null"], "minLength": 1},
+    "timestamp": {"type": ["string", "null"], "format": "date-time"},
+    "git_commit": {"type": ["string", "null"], "pattern": "^[a-fA-F0-9]{40}$"},
+    "webots_version": {"type": ["string", "null"]},
+    "controller_version": {"type": ["string", "null"]},
+    "robot_config": {"type": ["string", "object", "null"]},
+    "scenario": {"type": ["string", "null"]},
+    "test_conditions": {"type": ["object", "null"]},
+    "expected_result": {"type": ["object", "string", "null"]},
+    "observed_result": {"type": ["object", "string", "null"]},
+    "metrics": {"type": "object"},
+    "pass_fail_status": {"enum": ["PASS", "FAIL", "INCONCLUSIVE", "NOT RUN", "BLOCKED"]},
+    "notes": {"type": ["string", "null"]},
+    "evidence_class": {"enum": ["unit", "mock", "integration", "native-webots", "operator-contact", "hardware-bench", null]},
+    "source_commit_sha": {"type": ["string", "null"]},
+    "test_merge_sha": {"type": ["string", "null"]},
+    "config_sha256": {"type": ["string", "null"]},
+    "world_sha256": {"type": ["string", "null"]},
+    "raw_artifacts": {"type": "array", "items": {"type": "string"}},
+    "native_contact_verified": {"type": ["boolean", "null"]},
+    "operator_approval": {"type": ["boolean", "null"]}
+  },
+  "additionalProperties": true
+}

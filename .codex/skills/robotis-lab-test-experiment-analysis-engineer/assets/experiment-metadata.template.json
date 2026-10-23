@@ -1,0 +1,23 @@
+{
+  "run_id": null,
+  "timestamp": null,
+  "git_commit": null,
+  "webots_version": null,
+  "controller_version": null,
+  "robot_config": null,
+  "scenario": null,
+  "test_conditions": {},
+  "expected_result": null,
+  "observed_result": null,
+  "metrics": {},
+  "pass_fail_status": "NOT RUN",
+  "notes": "TEMPLATE ONLY: values null until measured; this is not a real experiment",
+  "evidence_class": null,
+  "source_commit_sha": null,
+  "test_merge_sha": null,
+  "config_sha256": null,
+  "world_sha256": null,
+  "raw_artifacts": [],
+  "native_contact_verified": null,
+  "operator_approval": null
+}
