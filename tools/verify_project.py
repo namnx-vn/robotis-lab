@@ -23,8 +23,8 @@ assert world.startswith("#VRML_SIM R2025a utf8")
 assert proto.startswith("#VRML_SIM R2025a utf8")
 assert 'coordinateSystem "NUE"' in world
 assert 'EXTERNPROTO "../protos/RLH25.proto"' in world
-assert "gravity 9.81" in world
-assert "coulombFriction [ 1.1 ]" in world
+assert re.search(r"(?m)^\s*gravity\s+9\.81\s*$", world), "world gravity must be explicitly 9.81"
+assert re.search(r"(?m)^\s*coulombFriction\s*\[\s*1\.1\s*\]", world), "world friction must be 1.1"
 assert proto.count('contactMaterial "foot_grip"') == 2
 assert "physics Physics { density -1 mass 0.14 }" in proto
 assert proto.count("HingeJoint {") == 10
