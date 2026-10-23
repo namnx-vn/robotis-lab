@@ -21,6 +21,7 @@ Tài liệu được nhóm theo **mục đích**, thay vì đặt tất cả và
 ## Experiments — Quy trình mô phỏng
 
 - [Standing baseline](experiments/standing-baseline.md) — 5 lần đứng tĩnh
+- [P2-CONTACT-001](experiments/p2-contact-001.md) — kiểm chứng foot contacts trong Webots GUI, ảnh và CSV/JSON (operator)
 - [Controlled disturbance](experiments/controlled-disturbance.md) — thử xung lực chuẩn hóa
 - [Balance matrix](experiments/balance-matrix.md) — pitch/roll theo hai chiều và acceptance gate
 - [P2.2 acceptance report](experiments/p2-2-acceptance-report.md) — force API fix PR #8, acceptance gate và bằng chứng còn thiếu

@@ -10,6 +10,9 @@ class WorldTests(unittest.TestCase):
     def test_world_declares_standard_gravity(self):
         self.assertRegex(WORLD.read_text(), r"(?m)^\s*gravity\s+9\.81\s*$")
 
+    def test_world_declares_foot_floor_friction_multiline(self):
+        self.assertRegex(WORLD.read_text(), r"(?m)^\s*coulombFriction\s*\[\s*1\.1\s*\]")
+
 
 if __name__ == "__main__":
     unittest.main()
