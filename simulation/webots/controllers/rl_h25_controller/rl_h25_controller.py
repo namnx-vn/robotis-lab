@@ -18,6 +18,7 @@ from pathlib import Path
 
 from motion import JointConfig, Observation, SafetySupervisor, BalanceController
 from disturbance import DisturbanceSpec, DisturbanceInjector
+from contact_evidence import ContactEvidence
 
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 CONFIG_PATH = PROJECT_ROOT / "configs" / "robot.json"
@@ -34,15 +35,34 @@ def main() -> None:
     from controller import Robot  # Webots runtime only
     cfg = load_config()
     disturbance_spec = DisturbanceSpec.from_env(os.environ)
-    if disturbance_spec is not None:
-        from controller import Supervisor  # only when opt-in experiment is active
-    # RLH25.proto declares supervisor TRUE. No Supervisor method is used in normal mode.
-    robot = Supervisor() if disturbance_spec is not None else Robot()
+    contact_raw = os.getenv("RL_H25_CONTACT_EVIDENCE", "0")
+    if contact_raw not in ("0", "1"):
+        raise ValueError("RL_H25_CONTACT_EVIDENCE must be 0 or 1")
+    contact_enabled = contact_raw == "1"
+    if disturbance_spec is not None or contact_enabled:
+        from controller import Supervisor  # only for opt-in experiment/evidence modes
+    # RLH25.proto declares supervisor TRUE. Normal control still uses Robot only.
+    robot = Supervisor() if disturbance_spec is not None or contact_enabled else Robot()
+    robot_node = robot.getSelf() if disturbance_spec is not None or contact_enabled else None
     disturbance = (DisturbanceInjector(disturbance_spec, robot.getSelf())
                    if disturbance_spec is not None else None)
     step_ms = int(round(robot.getBasicTimeStep()))
     if step_ms <= 0:
         raise RuntimeError("invalid Webots time step")
+    contact_evidence = ContactEvidence() if contact_enabled else None
+    contact_names: dict[int, str] = {}
+    if contact_evidence is not None:
+        robot_node.enableContactPointsTracking(step_ms, True)
+
+    def contact_node_name(node_id: int) -> str:
+        if node_id not in contact_names:
+            node = robot.getFromId(node_id)
+            field = node.getField("name") if node is not None else None
+            name = field.getSFString() if field is not None else ""
+            if not name:
+                raise RuntimeError(f"cannot resolve contact solid node {node_id}")
+            contact_names[node_id] = name
+        return contact_names[node_id]
     sensors: dict[str, object] = {}
     motors: dict[str, object] = {}
     joints = {name: JointConfig.from_dict(raw) for name, raw in cfg["joints"].items()}
@@ -111,6 +131,7 @@ def main() -> None:
         "config": str(CONFIG_PATH.relative_to(PROJECT_ROOT)),
         "fault_injection": fault_injection or None,
         "disturbance": disturbance.metadata() if disturbance else None,
+        "contact_evidence": contact_evidence.summary() if contact_evidence else None,
         "result": "incomplete"
     }
     meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
@@ -194,6 +215,10 @@ def main() -> None:
                 if disturbance is not None:
                     disturbance.step(now, can_apply=state == "STAND")
                 if now >= log_next:
+                    if contact_evidence is not None:
+                        contact_evidence.observe(
+                            robot_node.getContactPoints(True), contact_node_name
+                        )
                     root_velocity = (robot.getSelf().getVelocity()[:3]
                                      if disturbance is not None else ("", "", ""))
                     req_force = (disturbance_spec.force_vector()
@@ -234,6 +259,8 @@ def main() -> None:
         meta["result"] = "controller_exited" if completed else "error"
         if disturbance is not None:
             meta["disturbance"] = disturbance.metadata()
+        if contact_evidence is not None:
+            meta["contact_evidence"] = contact_evidence.summary()
         meta["final_state"] = state
         meta["stop_reason"] = reason
         meta["sim_time_s"] = last_time

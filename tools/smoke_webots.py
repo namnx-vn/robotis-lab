@@ -26,6 +26,7 @@ WORLD = ROOT / "simulation/webots/worlds/rl_h25_lab.wbt"
 def build_controller_env(binary: str, base_env: dict[str, str]) -> dict[str, str]:
     env = dict(base_env)
     env.setdefault("RL_H25_WEBOTS_VERSION", read_webots_version(binary, env))
+    env.setdefault("RL_H25_CONTACT_EVIDENCE", "1")
     return env
 
 
@@ -84,6 +85,10 @@ def main():
             print("WEBOTS OUTPUT (last 100 lines):\n" + "\n".join(stdout.splitlines()[-100:]))
     if result is None:
         print("FAIL: controller did not finish; inspect Webots messages above.")
+        return 1
+    contact = result.get("contact_evidence")
+    if not isinstance(contact, dict) or contact.get("sample_count", 0) < 1:
+        print("FAIL: native contact-point evidence is missing")
         return 1
     csv_path = log_dir / (run_id + ".csv")
     if not csv_path.exists() or csv_path.stat().st_size <= 80:

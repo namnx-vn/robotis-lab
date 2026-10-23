@@ -55,6 +55,7 @@ class WebotsVersionTests(unittest.TestCase):
             result = build_controller_env(str(binary), original)
 
             self.assertEqual("Webots R2025a38", result["RL_H25_WEBOTS_VERSION"])
+            self.assertEqual("1", result["RL_H25_CONTACT_EVIDENCE"])
             self.assertEqual({"EXISTING": "value"}, original)
 
 
