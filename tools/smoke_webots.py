@@ -17,8 +17,16 @@ import tempfile
 import time
 import uuid
 
+from run_standing_trials import read_webots_version
+
 ROOT = Path(__file__).resolve().parents[1]
 WORLD = ROOT / "simulation/webots/worlds/rl_h25_lab.wbt"
+
+
+def build_controller_env(binary: str, base_env: dict[str, str]) -> dict[str, str]:
+    env = dict(base_env)
+    env.setdefault("RL_H25_WEBOTS_VERSION", read_webots_version(binary, env))
+    return env
 
 
 def main():
@@ -37,7 +45,7 @@ def main():
     log_dir = ROOT / "experiments/logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     cmd = prefix + [exe, "--stdout", "--stderr", "--batch", "--mode=fast", "--no-rendering", str(WORLD)]
-    env = os.environ.copy()
+    env = build_controller_env(exe, os.environ)
     env.update(RL_H25_RUN_ID=run_id, RL_H25_DURATION_S="8", RL_H25_LOG_DIR=str(log_dir))
     print("CMD:", " ".join(cmd), flush=True)
     meta_file = log_dir / (run_id + ".json")

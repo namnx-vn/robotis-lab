@@ -7,6 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from run_standing_trials import read_webots_version
+from smoke_webots import build_controller_env
 
 
 class WebotsVersionTests(unittest.TestCase):
@@ -28,6 +29,33 @@ class WebotsVersionTests(unittest.TestCase):
             (home / "resources" / "version.txt").write_text("R2025a38\n", encoding="utf-8")
             self.assertEqual("Webots R2025a38",
                              read_webots_version("/unused/webots", {"WEBOTS_HOME": str(home)}))
+
+    def test_reads_linux_install_version_next_to_binary(self):
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp) / "webots"
+            binary = home / "webots"
+            binary.parent.mkdir(parents=True)
+            binary.touch()
+            resources = home / "resources"
+            resources.mkdir()
+            (resources / "version.txt").write_text("R2025a38\n", encoding="utf-8")
+            self.assertEqual("Webots R2025a38", read_webots_version(str(binary), {}))
+
+    def test_smoke_controller_env_records_version_without_mutating_input(self):
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp) / "webots"
+            binary = home / "webots"
+            binary.parent.mkdir(parents=True)
+            binary.touch()
+            resources = home / "resources"
+            resources.mkdir()
+            (resources / "version.txt").write_text("R2025a38\n", encoding="utf-8")
+            original = {"EXISTING": "value"}
+
+            result = build_controller_env(str(binary), original)
+
+            self.assertEqual("Webots R2025a38", result["RL_H25_WEBOTS_VERSION"])
+            self.assertEqual({"EXISTING": "value"}, original)
 
 
 class WorkflowProvenanceTests(unittest.TestCase):

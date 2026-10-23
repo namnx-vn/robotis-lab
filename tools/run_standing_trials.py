@@ -30,6 +30,7 @@ def read_webots_version(binary: str, env: dict[str, str]) -> str:
         roots.append(Path(env['WEBOTS_HOME']))
     try:
         executable = Path(binary).resolve()
+        roots.append(executable.parent)
         if len(executable.parents) > 1 and executable.parents[1].name == 'Contents':
             roots.append(executable.parents[1])
     except OSError:
