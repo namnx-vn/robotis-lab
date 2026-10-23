@@ -23,6 +23,80 @@ EXIT_POLICY = (
 SMOKE_TARGET_DURATION_S = 8.0
 SMOKE_DURATION_TOLERANCE_S = 0.5
 SMOKE_MIN_DURATION_S = SMOKE_TARGET_DURATION_S - SMOKE_DURATION_TOLERANCE_S
+CONTACT_API = "Node.getContactPoints(includeDescendants=True)"
+
+
+def _contact_evidence_error(value: Any) -> str | None:
+    if not isinstance(value, dict):
+        return "missing contact evidence"
+    if value.get("api") != CONTACT_API:
+        return "unexpected contact evidence API"
+
+    integer_fields = (
+        "sample_count",
+        "samples_with_contacts",
+        "min_contact_count",
+        "max_contact_count",
+    )
+    if any(type(value.get(field)) is not int for field in integer_fields):
+        return "invalid contact evidence counts"
+    sample_count = value["sample_count"]
+    if sample_count < 1 or value["samples_with_contacts"] != sample_count:
+        return "contact missing from one or more samples"
+    if (
+        value["min_contact_count"] < 2
+        or value["max_contact_count"] < value["min_contact_count"]
+    ):
+        return "invalid contact point range"
+
+    node_ids = value.get("contact_solid_node_ids")
+    if (
+        not isinstance(node_ids, list)
+        or len(node_ids) != 2
+        or len(set(node_ids)) != 2
+        or any(type(node_id) is not int or node_id <= 0 for node_id in node_ids)
+    ):
+        return "expected exactly two contact solids"
+    expected_keys = {str(node_id) for node_id in node_ids}
+    observations = value.get("contact_observations_by_solid_node_id")
+    samples_by_solid = value.get("samples_by_solid_node_id")
+    if not isinstance(observations, dict) or set(observations) != expected_keys:
+        return "invalid contact observations by solid"
+    if any(type(count) is not int or count < 1 for count in observations.values()):
+        return "invalid contact observations by solid"
+    if not isinstance(samples_by_solid, dict) or set(samples_by_solid) != expected_keys:
+        return "invalid contact samples by solid"
+    if any(
+        type(count) is not int or count != sample_count
+        for count in samples_by_solid.values()
+    ):
+        return "both contact solids must be present in every sample"
+    if any(
+        observations[node_id] < samples_by_solid[node_id]
+        for node_id in expected_keys
+    ):
+        return "contact observations conflict with samples by solid"
+    total_observations = sum(observations.values())
+    if not (
+        sample_count * value["min_contact_count"]
+        <= total_observations
+        <= sample_count * value["max_contact_count"]
+    ):
+        return "contact observations conflict with point range"
+
+    min_y = value.get("min_world_y_m")
+    max_y = value.get("max_world_y_m")
+    if (
+        isinstance(min_y, bool)
+        or not isinstance(min_y, (int, float))
+        or isinstance(max_y, bool)
+        or not isinstance(max_y, (int, float))
+        or not math.isfinite(min_y)
+        or not math.isfinite(max_y)
+        or min_y > max_y
+    ):
+        return "invalid contact world-y range"
+    return None
 
 
 def _read_metadata(
@@ -65,6 +139,9 @@ def _read_metadata(
         or sim_time <= 0
     ):
         return None, f"{path.name}: invalid sim_time_s"
+    contact_error = _contact_evidence_error(value.get("contact_evidence"))
+    if contact_error is not None:
+        return None, f"{path.name}: {contact_error}"
     return value, None
 
 
@@ -87,6 +164,15 @@ def _metadata_summary(
             "build_commit": value.get("build_commit"),
             "source_commit_sha": value.get("source_commit_sha"),
             "test_merge_sha": value.get("test_merge_sha"),
+            "contact_sample_count": value["contact_evidence"]["sample_count"],
+            "contact_samples_with_contacts": value["contact_evidence"][
+                "samples_with_contacts"
+            ],
+            "contact_solid_node_ids": value["contact_evidence"][
+                "contact_solid_node_ids"
+            ],
+            "contact_min_count": value["contact_evidence"]["min_contact_count"],
+            "contact_max_count": value["contact_evidence"]["max_contact_count"],
         }
         for value in metadata
     ]
@@ -197,6 +283,26 @@ def _markdown(report: dict[str, Any]) -> str:
                 f"{_markdown_value(run['test_merge_sha'])} |"
                 for run in metadata["runs"]
             ),
+        ]
+        lines += [
+            "",
+            "## Native contact telemetry",
+            "",
+            "| Run ID | Contact samples | Contact points/sample | Contact solid IDs |",
+            "| --- | ---: | ---: | --- |",
+            *(
+                f"| {_markdown_value(run['run_id'])} | "
+                f"{_markdown_value(run['contact_samples_with_contacts'])}/"
+                f"{_markdown_value(run['contact_sample_count'])} | "
+                f"{_markdown_value(run['contact_min_count'])}-"
+                f"{_markdown_value(run['contact_max_count'])} | "
+                f"{_markdown_value(', '.join(str(node_id) for node_id in run['contact_solid_node_ids']))} |"
+                for run in metadata["runs"]
+            ),
+            "",
+            "**Scope limitation:** Headless contact telemetry does not prove absence of "
+            "artificial anchoring, visual interpenetration or slip; the operator GUI check "
+            "remains required.",
         ]
     if metadata["errors"]:
         lines += [

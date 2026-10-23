@@ -1,6 +1,14 @@
 # P2-CONTACT-001 — Native Webots contact observation (operator)
 
-**Status: NOT RUN / UNVERIFIED.** This procedure requires the operator's local macOS Webots R2025a GUI. GitHub CI/headless logs cannot replace visible contact points, bounding objects and independent confirmation of no artificial anchoring. No P3 weight shift or walking is authorized by this document.
+**Status: HEADLESS NATIVE EVIDENCE COLLECTED / OPERATOR VISUAL UNVERIFIED.** GitHub CI now records bounded native contact-point telemetry, but it cannot replace visible contact points, bounding objects and independent confirmation of no artificial anchoring. No P3 weight shift or walking is authorized by this document.
+
+## Headless native evidence (2026-10-23)
+
+On PR [#15](https://github.com/namnx-vn/robotis-lab/pull/15), manually dispatched [Webots simulation run #42](https://github.com/namnx-vn/robotis-lab/actions/runs/39979744493) executed five independent 32 s baseline trials on source/test SHA `b53e887e00b26b51b9ac7096e892deb7ca58fac5` with Webots R2025a. Artifact `12513575740` contains the CI report plus all CSV/JSON telemetry.
+
+All five trials finished `STAND` with no fault. Each trial recorded 286/286 samples with contacts, always eight contact points, exactly two descendant `Solid` IDs (`78` and `138`), and 1,144 observations per ID. Contact world-Y stayed between `-0.000045883 m` and `-0.000030567 m`. The first/last snapshots form two separate `0.044 m × 0.076 m` rectangles matching the two foot collision geometries. Static standing metrics also passed 5/5: 31.92 s telemetry duration, roll `0 rad`, maximum pitch `0.0002 rad`, minimum root height `0.183 m`, and planar drift `0 m`.
+
+This is repeatable headless evidence consistent with contact on both descendant foot solids. Run #42 aggregated observations per ID, so it does not by itself prove that both IDs were present in every individual sample. It also does **not** prove absence of a hidden constraint, visually exclude collision interpenetration/skating, measure load distribution or certify active balance. Therefore the operator checklist below remains open and the overall P2 contact observation is still incomplete.
 
 ## Goal and prerequisites
 

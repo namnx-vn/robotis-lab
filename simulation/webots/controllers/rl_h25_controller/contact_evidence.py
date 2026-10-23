@@ -15,6 +15,7 @@ class ContactEvidence:
         self.min_world_y_m = math.inf
         self.max_world_y_m = -math.inf
         self.solid_counts: dict[int, int] = {}
+        self.solid_sample_counts: dict[int, int] = {}
         self.first_contacts: list[dict[str, Any]] | None = None
         self.last_contacts: list[dict[str, Any]] = []
 
@@ -43,6 +44,10 @@ class ContactEvidence:
             self.solid_counts[node_id] = self.solid_counts.get(node_id, 0) + 1
 
         count = len(contacts)
+        for node_id in {contact["solid_node_id"] for contact in contacts}:
+            self.solid_sample_counts[node_id] = (
+                self.solid_sample_counts.get(node_id, 0) + 1
+            )
         self.sample_count += 1
         self.samples_with_contacts += count > 0
         self.min_contact_count = (
@@ -64,6 +69,10 @@ class ContactEvidence:
             "contact_solid_node_ids": sorted(self.solid_counts),
             "contact_observations_by_solid_node_id": {
                 str(node_id): count for node_id, count in sorted(self.solid_counts.items())
+            },
+            "samples_by_solid_node_id": {
+                str(node_id): count
+                for node_id, count in sorted(self.solid_sample_counts.items())
             },
             "min_world_y_m": round(self.min_world_y_m, 9) if has_points else None,
             "max_world_y_m": round(self.max_world_y_m, 9) if has_points else None,

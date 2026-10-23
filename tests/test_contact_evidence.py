@@ -45,6 +45,10 @@ class ContactEvidenceTests(unittest.TestCase):
             [11, 12],
             summary["contact_solid_node_ids"],
         )
+        self.assertEqual(
+            {"11": 1, "12": 2},
+            summary["samples_by_solid_node_id"],
+        )
         self.assertEqual(1, len(summary["last_contacts"]))
         self.assertEqual(0.0, summary["min_world_y_m"])
         self.assertEqual(0.00001, summary["max_world_y_m"])

@@ -4,6 +4,7 @@
 - [x] Webots R2025a parser and 10 DOF geometry seen running on operator macOS.
 - [x] Add IMU/gyro/accelerometer/GPS/camera/distance telemetry and Physics.
 - [ ] Visually verify bounding boxes, both foot contacts and absence of false static anchoring in Webots.
+- [x] Record aggregate headless native contact telemetry with two descendant foot-solid IDs across five independent 32 s baseline trials (PR #15 run #42); retain GUI validation above.
 
 ## P2.1 — Static standing baseline (automated gate passed)
 - [x] Bounded IMU pitch/roll PID implemented (offline tests; native recovery unverified).
