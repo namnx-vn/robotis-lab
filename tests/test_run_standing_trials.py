@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
-from run_standing_trials import read_webots_version
+from run_standing_trials import build_native_env, read_webots_version
 from smoke_webots import build_controller_env
 
 
@@ -57,6 +57,21 @@ class WebotsVersionTests(unittest.TestCase):
             self.assertEqual("Webots R2025a38", result["RL_H25_WEBOTS_VERSION"])
             self.assertEqual("1", result["RL_H25_CONTACT_EVIDENCE"])
             self.assertEqual({"EXISTING": "value"}, original)
+
+    def test_native_trial_env_enables_contact_evidence(self):
+        with tempfile.TemporaryDirectory() as temp:
+            home = Path(temp) / "webots"
+            binary = home / "webots"
+            binary.parent.mkdir(parents=True)
+            binary.touch()
+            resources = home / "resources"
+            resources.mkdir()
+            (resources / "version.txt").write_text("R2025a38\n", encoding="utf-8")
+
+            result = build_native_env(str(binary), {})
+
+            self.assertEqual("Webots R2025a38", result["RL_H25_WEBOTS_VERSION"])
+            self.assertEqual("1", result["RL_H25_CONTACT_EVIDENCE"])
 
 
 class WorkflowProvenanceTests(unittest.TestCase):

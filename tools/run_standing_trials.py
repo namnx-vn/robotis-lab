@@ -54,6 +54,13 @@ def read_webots_version(binary: str, env: dict[str, str]) -> str:
             output if output.startswith('Webots R20') else 'unverified')
 
 
+def build_native_env(binary: str, base_env: dict[str, str]) -> dict[str, str]:
+    env = dict(base_env)
+    env.setdefault('RL_H25_WEBOTS_VERSION', read_webots_version(binary, env))
+    env.setdefault('RL_H25_CONTACT_EVIDENCE', '1')
+    return env
+
+
 def trial(binary: str, *, mode: str, sim_duration_s: float, timeout_s: float,
           number: int, graphics: bool = False, extra_env: dict | None = None) -> Path:
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
@@ -69,7 +76,7 @@ def trial(binary: str, *, mode: str, sim_duration_s: float, timeout_s: float,
         if not shutil.which('xvfb-run'):
             raise RuntimeError('No DISPLAY; xvfb-run is required on headless Linux')
         prefix = ['xvfb-run', '-a']
-    env = os.environ.copy()
+    env = build_native_env(binary, os.environ)
     env.update(RL_H25_MODE=mode, RL_H25_RUN_ID=run_id,
                RL_H25_DURATION_S=str(sim_duration_s), RL_H25_LOG_DIR=str(LOGDIR))
     # Keep provenance of the exact checked-out source and PR test merge.
@@ -82,7 +89,6 @@ def trial(binary: str, *, mode: str, sim_duration_s: float, timeout_s: float,
     env.setdefault("RL_H25_BUILD_COMMIT", head)
     env.setdefault("RL_H25_SOURCE_COMMIT_SHA", head)
     env.setdefault("RL_H25_TEST_MERGE_SHA", os.getenv("GITHUB_SHA", head))
-    env.setdefault("RL_H25_WEBOTS_VERSION", read_webots_version(binary, env))
     env.pop('RL_H25_FORCE_FAULT', None)
     for key in list(env):
         if key.startswith('RL_H25_DIST_') or key == 'RL_H25_DISTURBANCE':

@@ -17,17 +17,14 @@ import tempfile
 import time
 import uuid
 
-from run_standing_trials import read_webots_version
+from run_standing_trials import build_native_env
 
 ROOT = Path(__file__).resolve().parents[1]
 WORLD = ROOT / "simulation/webots/worlds/rl_h25_lab.wbt"
 
 
 def build_controller_env(binary: str, base_env: dict[str, str]) -> dict[str, str]:
-    env = dict(base_env)
-    env.setdefault("RL_H25_WEBOTS_VERSION", read_webots_version(binary, env))
-    env.setdefault("RL_H25_CONTACT_EVIDENCE", "1")
-    return env
+    return build_native_env(binary, base_env)
 
 
 def main():
