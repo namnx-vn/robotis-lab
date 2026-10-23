@@ -4,6 +4,7 @@
 - [x] Webots R2025a parser and 10 DOF geometry seen running on operator macOS.
 - [x] Add IMU/gyro/accelerometer/GPS/camera/distance telemetry and Physics.
 - [ ] Visually verify bounding boxes, both foot contacts and absence of false static anchoring in Webots.
+- [x] Record aggregate headless native contact telemetry with two descendant foot-solid IDs across five independent 32 s baseline trials (PR #15 run #42); retain GUI validation above.
 
 ## P2.1 — Static standing baseline (automated gate passed)
 - [x] Bounded IMU pitch/roll PID implemented (offline tests; native recovery unverified).
@@ -15,7 +16,8 @@
 - [x] Experiment runner and telemetry validity checks; FAULT and absent excitation are not passes.
 - [x] Add four-case pitch+/pitch-/roll+/roll- matrix and fail-closed aggregate gate.
 - [x] Add Python 3.10/3.12 CI on pull requests; offline suite.
-- [ ] Operator: one-pair pilot matrix in native Webots R2025a.
+- [x] Native one-pair pilot matrix at source `5764732`: all four directions ran without FAULT but were `INCONCLUSIVE` because peak excitation was only `0.00012–0.00016 rad` (<`0.008 rad`).
+- [ ] Repeat the bounded pilot on the accepted source only after contact review and an approved excitation-protocol hypothesis.
 - [ ] Check whether all four directions receive measurable force without faults.
 - [ ] Operator: five matched pairs/direction only after pilot review.
 - [ ] Validate PID axis signs/gains from observed telemetry and controlled recovery.

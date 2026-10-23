@@ -63,7 +63,26 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
         offset = float(dist["offset_m"])
         applied = int(dist["applied_steps"])
         axis = dist["axis"]
-        if (axis not in ("pitch", "roll") or not 0.01 <= force <= 0.35 or
+        direction = dist["direction"]
+        direction_valid = type(direction) is int and direction in (-1, 1)
+        expected_force = (
+            [direction * force, 0.0, 0.0] if axis == "roll"
+            else [0.0, 0.0, direction * force]
+        ) if direction_valid else None
+        world_force = dist.get("world_force_n")
+        force_vector_valid = (
+            expected_force is not None
+            and isinstance(world_force, list)
+            and len(world_force) == 3
+            and all(
+                math.isfinite(float(actual))
+                and math.isclose(float(actual), expected, rel_tol=0.0, abs_tol=1e-9)
+                for actual, expected in zip(world_force, expected_force)
+            )
+        )
+        if (axis not in ("pitch", "roll") or
+                not direction_valid or not force_vector_valid or
+                not 0.01 <= force <= 0.35 or
                 not 0.016 <= duration <= 0.20 or not 0 <= offset <= 0.06 or
                 not 2 <= onset <= 15 or applied < 1 or
                 dist["first_application_s"] is None or
@@ -86,6 +105,12 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
         cross_peak = max(abs(r[other_axis + "_rad"] - other_initial) for r in after)
         peak = max(amp)
         peak_idx = max(range(len(amp)), key=amp.__getitem__)
+        signed_peak = after[peak_idx][axis + "_rad"] - initial_angle
+        first_measurable_signed = next(
+            (r[axis + "_rad"] - initial_angle for r in after
+             if abs(r[axis + "_rad"] - initial_angle) >= 0.008),
+            None,
+        )
         fault_rows = [r for r in data if r["state"] != "STAND"]
         fault = bool(fault_rows)
         first_fault_s = fault_rows[0]["t_s"] if fault_rows else None
@@ -102,16 +127,17 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
             if tail and after[tail[-1]]["t_s"] >= until-0.07 and all(amp[j] <= 0.025 for j in tail):
                 settle = round(after[i]["t_s"] - onset, 3)
                 break
-        observed = peak >= 0.008
-        out.update(run_id=meta["run_id"], mode=mode, axis=axis, direction=int(dist["direction"]),
+        observed = first_measurable_signed is not None
+        out.update(run_id=meta["run_id"], mode=mode, axis=axis, direction=direction,
                    force_n=force, pulse_s=duration, onset_s=onset, offset_m=offset,
                    applied_steps=applied, peak_tilt_change_rad=round(peak, 5),
                    max_planar_drift_m=round(drift, 5), min_root_height_m=round(min_height, 5),
                    settled_after_onset_s=settle, fault=fault,
                    first_fault_s=first_fault_s,
                    cross_axis_peak_change_rad=round(cross_peak, 6),
-                   peak_signed_tilt_change_rad=round(
-                       after[peak_idx][axis + "_rad"] - initial_angle, 6),
+                   peak_signed_tilt_change_rad=round(signed_peak, 6),
+                   first_measurable_signed_tilt_change_rad=(
+                       round(first_measurable_signed, 6) if observed else None),
                    source_commit_sha=meta["source_commit_sha"],
                    test_merge_sha=meta.get("test_merge_sha", "unverified"),
                    config_sha256=meta["config_sha256"], world_sha256=meta["world_sha256"],
@@ -125,6 +151,9 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
         elif not observed:
             out["verdict"] = "INCONCLUSIVE"
             failures.append("no_measurable_excitation")
+        elif direction * first_measurable_signed <= 0:
+            out["verdict"] = "FAIL"
+            failures.append("wrong_signed_response")
         elif settle is None:
             out["verdict"] = "FAIL"
             failures.append("did_not_settle_in_5s")

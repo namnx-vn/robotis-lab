@@ -41,6 +41,15 @@ class FakeDistance(FakeSensor):
     def getValue(self): return 0.55
 
 
+class FakeContactPoint:
+    def __init__(self, point, node_id):
+        self.point = point
+        self.node_id = node_id
+
+    def getPoint(self): return self.point
+    def getNodeId(self): return self.node_id
+
+
 class FakeRobot:
     def __init__(self):
         cfg = json.loads((ROOT / "configs" / "robot.json").read_text())
@@ -63,10 +72,21 @@ class FakeRobot:
         return 0
 
 
+class FakeContactRobot(FakeRobot):
+    def getSelf(self): return self
+    def enableContactPointsTracking(self, timestep, include_descendants):
+        self.contact_tracking = (timestep, include_descendants)
+    def getContactPoints(self, include_descendants):
+        return [
+            FakeContactPoint((-0.03, 0.0, 0.0), 11),
+            FakeContactPoint((0.03, 0.0, 0.0), 12),
+        ]
 class ControllerFakeTests(unittest.TestCase):
-    def run_case(self, injection, expected, mode="baseline", nonzero_imu=False):
+    def run_case(self, injection, expected, mode="baseline", nonzero_imu=False,
+                 contact_evidence=False):
         module = types.ModuleType("controller")
         module.Robot = FakeRobot
+        module.Supervisor = FakeContactRobot
         spec = importlib.util.spec_from_file_location("rl_h25_controller", CTRL / "rl_h25_controller.py")
         ctrl = importlib.util.module_from_spec(spec)
         with tempfile.TemporaryDirectory() as temp:
@@ -75,7 +95,9 @@ class ControllerFakeTests(unittest.TestCase):
                                              "RL_H25_RUN_ID": "fake-case",
                                              "RL_H25_FORCE_FAULT": injection,
                                              "RL_H25_MODE": mode,
-                                             "RL_H25_DURATION_S": "0"}):
+                                             "RL_H25_DURATION_S": "0",
+                                             "RL_H25_CONTACT_EVIDENCE":
+                                                 "1" if contact_evidence else "0"}):
                     spec.loader.exec_module(ctrl)
                     if nonzero_imu:
                         with patch.object(FakeSensor, "getRollPitchYaw",
@@ -98,6 +120,12 @@ class ControllerFakeTests(unittest.TestCase):
                     self.assertNotEqual(0.0, float(rows[-1]["pitch_correction_rad"]))
                     self.assertNotEqual(0.0, float(rows[-1]["roll_correction_rad"]))
                     self.assertNotEqual(0.0, float(rows[-1]["left_ankle_pitch_target_rad"]))
+            if contact_evidence:
+                self.assertEqual(
+                    [11, 12],
+                    record["contact_evidence"]["contact_solid_node_ids"],
+                )
+                self.assertGreater(record["contact_evidence"]["sample_count"], 0)
             return record
 
     def test_normal(self): self.run_case("", "STAND")
@@ -113,6 +141,8 @@ class ControllerFakeTests(unittest.TestCase):
     def test_bad_imu(self):
         self.assertEqual("invalid_sensor_value", self.run_case("nan_imu", "FAULT")["stop_reason"])
     def test_estop(self): self.run_case("estop", "E_STOP")
+    def test_contact_evidence(self):
+        self.run_case("", "STAND", contact_evidence=True)
 
 
 if __name__ == "__main__":

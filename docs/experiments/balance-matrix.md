@@ -32,7 +32,7 @@ An **exit code of 1 for the pilot is expected**: one pair per direction cannot s
 
 ## Acceptance gate
 
-`PASS` requires four distinct conditions (two axes × two signs) with >=3 comparable paired runs each, measurable excitation, no FAULT, settling within the stated report criteria, and >=10% lower average peak tilt in PID vs baseline **for each condition**, not only on average across directions.
+`PASS` requires four distinct conditions (two axes × two signs) with >=3 comparable paired runs each, measurable excitation, no FAULT, settling within the stated report criteria, and >=10% lower average peak tilt in PID vs baseline **for each condition**, not only on average across directions. Each measurably excited run must initially respond with the requested sign on the intended axis; an opposite signed response is `FAIL` and requires review before any full matrix.
 
 This is a strict experimental goal, **not an observed result**. A non-PASS is useful debugging evidence and **blocks P3 walking**. Inspect GUI contacts and verified motor command signs separately. Baseline/active parity is important: use the same world, model version, timestep and disturbance envelope.
 

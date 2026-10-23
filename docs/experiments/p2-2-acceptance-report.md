@@ -1,9 +1,9 @@
 # P2.2 Acceptance Report — Controlled Disturbance & Active Balance Recovery
 
 **Status: INCONCLUSIVE — P2.2 not accepted; P3 remains blocked.**
-**Date:** 2026-10-22
+**Date:** 2026-10-23
 **Scope:** Webots-only compatibility, telemetry and regression tests. No hardware, PID gain/sign, robot mechanics, gait or safety-limit changes.
-**Local follow-up branch:** `fix/p22-r2025a-force-api`; native RL-H25 runs used controller source commit `576473200b818c881373067bd3081d22379d92e4`.
+**Accepted source audited:** `master` at `a61d3f0659a4fe9f9157eb911b52e251ae032edd`.
 
 ## Goal and baseline evidence
 
@@ -18,6 +18,14 @@ Prove a repeatable world-frame force applied at an actual *node-local* +Y offset
 | Evidence verdict | INCONCLUSIVE | INCONCLUSIVE |
 
 Both peaks are far below the mandatory `0.008 rad` excitation gate. A recorded function call is not proof of applied offset torque. Old data may not be re-labelled as recovered after a source patch.
+
+## Current accepted-source audit
+
+PR [#14](https://github.com/namnx-vn/robotis-lab/pull/14) is merged, issue [#12](https://github.com/namnx-vn/robotis-lab/issues/12) is closed, and the exact merged `master` SHA is `a61d3f0659a4fe9f9157eb911b52e251ae032edd`. Its [native Webots baseline workflow](https://github.com/namnx-vn/robotis-lab/actions/runs/39921744892) used Webots R2025a and passed 5/5 independent 31.92 s trials: final state `STAND`, maximum roll `0 rad`, maximum pitch `0.0002 rad`, minimum root height `0.183 m`, planar drift `0 m`, and no fault. Artifact `12487861149` contains the CI report, simulation log and CSV/JSON telemetry. This is accepted automated static-standing evidence, not visual contact proof or active-balance recovery evidence.
+
+The PR #14 disturbance pilot remained scientifically inconclusive: at 0.10 N for 0.112 s, the reviewed pitch-positive pair measured only `0.00012 rad` baseline and `0.00016 rad` active balance, both below `0.008 rad`. Its report explicitly sets `scientific_balance_certified=false`. The current report gate is being hardened to reject a first measurable response in the wrong requested direction and to reject mismatched source/test provenance; these evidence-integrity changes do not make the old pilot conclusive.
+
+PR [#15](https://github.com/namnx-vn/robotis-lab/pull/15) adds that fail-closed sign/provenance validation and bounded native contact aggregation without changing joint commands, PID gains, safety limits, collision geometry or world physics. Its [five-trial native baseline](https://github.com/namnx-vn/robotis-lab/actions/runs/39979744493) on source/test SHA `b53e887e00b26b51b9ac7096e892deb7ca58fac5` passed 5/5 at 32 s. Every trial had 286/286 contact samples, eight points per sample and exactly two descendant contact-solid IDs with 1,144 observations each. This is strong headless two-foot-contact evidence, but the PR is unmerged and the required GUI inspection for anchoring, interpenetration and slip is still pending.
 
 ## Source root cause, fix and trade-offs
 
@@ -34,6 +42,8 @@ The adapter, native probe, telemetry and CI guard were merged in [PR #8](https:/
 - `simulation/webots/worlds/force_api_probe.wbt` and `simulation/webots/controllers/force_api_probe/force_api_probe.py` — independent dynamic unanchored body, gravity, zero/nonzero local offset, ±X/±Z and rotated frames.
 - `tools/run_force_api_probe.py` — native probe execution, report JSON/log, fail-closed parser.
 - `tools/run_standing_trials.py` — pass source SHA, test-merge SHA, exact version if observable.
+- `simulation/webots/controllers/rl_h25_controller/contact_evidence.py` — bounded read-only aggregation of native descendant contact points.
+- `tools/ci_report.py` — fail closed when native contact evidence is absent from any recorded sample or not attributable to exactly two contact solids.
 - `tools/disturbance_report.py` — strict API/provenance checks, cross-axis peak, first fault time, no dropping failed/incomplete pairs.
 - `tests/test_disturbance.py`, `tests/test_force_api_abi.py`, `tests/test_force_api_probe.py` — mock-only regression.
 - `.github/workflows/disturbance-pilot.yml` — native independent force API probe runs before robot pilot; preserves raw artifacts.
@@ -80,14 +90,15 @@ If a direction is `INCONCLUSIVE`, `FAIL` or has unexplained drift/fault, stop an
 | Required evidence | Current evidence |
 |---|---|
 | Native C force-with-offset physics on a free body and world/local-frame signs | PASS, local Webots R2025a, 8/8 cases |
-| Four directions: pitch ±, roll ± | One paired pilot each; all INCONCLUSIVE |
+| Five fresh undisturbed 32 s standing trials on accepted source | PASS, 5/5 on `a61d3f0`; automated telemetry only |
+| Four directions: pitch ±, roll ± | One paired pilot each on older source; all INCONCLUSIVE |
 | >=3 independently valid paired runs per direction (5 preferred) | PENDING |
 | Every trial peak response >=0.008 rad, initial target-axis tilt <0.08 rad | PENDING |
 | No FAULT, fall, root-height loss, unacceptable drift | No faults in pilots; full-matrix gate pending |
 | Settle within 0.025 rad for >=0.8s within 5s | PENDING |
 | >=10% mean peak reduction for PID vs baseline **per direction** | PENDING |
 | Independent run IDs, matching force schedule, source/config/world/version provenance | PASS for 0.10 N pilot and calibration pairs |
-| Foot contact, no interpenetration, anchoring or unexplained slip | PENDING_OPERATOR_VISUAL_CHECK |
+| Foot contact, no interpenetration, anchoring or unexplained slip | HEADLESS_AGGREGATE_EVIDENCE on 5×32 s; PENDING_OPERATOR_VISUAL_CHECK |
 
 The acceptance matrix must retain failed runs, first-fault times, CSV/JSON/console logs and run IDs. **No `ACCEPTED` claim until all mandatory evidence is present.** P3 gait is blocked.
 
@@ -95,4 +106,4 @@ The acceptance matrix must retain failed runs, first-fault times, CSV/JSON/conso
 
 **Risks:** The free-body diagnostic validates the C API and frame/offset semantics, but not RL-H25 contact forces, foot slip or torque. All robot tilt peaks at 0.10–0.20 N are at least 25× below the required excitation gate, so PID effectiveness/sign cannot be inferred. Controller motors are idealized; friction and sensor noise are not characterized.
 
-**Next action:** Review a GUI Webots recording/contact view and the ignored raw CSVs, then decide whether the allowed force envelope, pulse duration or experiment model needs a separately reviewed change. Do not tune PID from these sub-threshold runs. Run >=3 paired trials per direction only after a safe pilot reaches >=0.008 rad; require operator visual contact confirmation. P2.2 remains INCONCLUSIVE and P3 gait remains blocked.
+**Next action:** Complete the GUI Webots contact/bounding-object observation, then review a separately proposed excitation-protocol hypothesis. Do not tune PID or escalate force from the sub-threshold runs. Run >=3 paired trials per direction only after a reviewed safe pilot reaches >=0.008 rad. P2.2 remains INCONCLUSIVE and P3 gait remains blocked.
