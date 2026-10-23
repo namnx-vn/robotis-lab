@@ -30,5 +30,20 @@ class WebotsVersionTests(unittest.TestCase):
                              read_webots_version("/unused/webots", {"WEBOTS_HOME": str(home)}))
 
 
+class WorkflowProvenanceTests(unittest.TestCase):
+    def test_simulation_workflow_exports_exact_source_and_test_sha(self):
+        workflow = (ROOT / ".github/workflows/simulation.yml").read_text(encoding="utf-8")
+        self.assertIn("RL_H25_BUILD_COMMIT: ${{ github.sha }}", workflow)
+        self.assertIn(
+            "RL_H25_SOURCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}",
+            workflow,
+        )
+        self.assertIn("RL_H25_TEST_MERGE_SHA: ${{ github.sha }}", workflow)
+        self.assertIn(
+            '--source-commit-sha "${{ github.event.pull_request.head.sha || github.sha }}"',
+            workflow,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

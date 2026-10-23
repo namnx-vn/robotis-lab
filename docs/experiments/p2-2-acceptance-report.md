@@ -1,9 +1,9 @@
 # P2.2 Acceptance Report — Controlled Disturbance & Active Balance Recovery
 
 **Status: INCONCLUSIVE — P2.2 not accepted; P3 remains blocked.**
-**Date:** 2026-10-22
+**Date:** 2026-10-23
 **Scope:** Webots-only compatibility, telemetry and regression tests. No hardware, PID gain/sign, robot mechanics, gait or safety-limit changes.
-**Local follow-up branch:** `fix/p22-r2025a-force-api`; native RL-H25 runs used controller source commit `576473200b818c881373067bd3081d22379d92e4`.
+**Accepted source audited:** `master` at `a61d3f0659a4fe9f9157eb911b52e251ae032edd`.
 
 ## Goal and baseline evidence
 
@@ -18,6 +18,12 @@ Prove a repeatable world-frame force applied at an actual *node-local* +Y offset
 | Evidence verdict | INCONCLUSIVE | INCONCLUSIVE |
 
 Both peaks are far below the mandatory `0.008 rad` excitation gate. A recorded function call is not proof of applied offset torque. Old data may not be re-labelled as recovered after a source patch.
+
+## Current accepted-source audit
+
+PR [#14](https://github.com/namnx-vn/robotis-lab/pull/14) is merged, issue [#12](https://github.com/namnx-vn/robotis-lab/issues/12) is closed, and the exact merged `master` SHA is `a61d3f0659a4fe9f9157eb911b52e251ae032edd`. Its [native Webots baseline workflow](https://github.com/namnx-vn/robotis-lab/actions/runs/39921744892) used Webots R2025a and passed 5/5 independent 31.92 s trials: final state `STAND`, maximum roll `0 rad`, maximum pitch `0.0002 rad`, minimum root height `0.183 m`, planar drift `0 m`, and no fault. Artifact `12487861149` contains the CI report, simulation log and CSV/JSON telemetry. This is accepted automated static-standing evidence, not visual contact proof or active-balance recovery evidence.
+
+The PR #14 disturbance pilot remained scientifically inconclusive: at 0.10 N for 0.112 s, the reviewed pitch-positive pair measured only `0.00012 rad` baseline and `0.00016 rad` active balance, both below `0.008 rad`. Its report explicitly sets `scientific_balance_certified=false`. The current report gate is being hardened to reject a first measurable response in the wrong requested direction and to reject mismatched source/test provenance; these evidence-integrity changes do not make the old pilot conclusive.
 
 ## Source root cause, fix and trade-offs
 
@@ -80,7 +86,8 @@ If a direction is `INCONCLUSIVE`, `FAIL` or has unexplained drift/fault, stop an
 | Required evidence | Current evidence |
 |---|---|
 | Native C force-with-offset physics on a free body and world/local-frame signs | PASS, local Webots R2025a, 8/8 cases |
-| Four directions: pitch ±, roll ± | One paired pilot each; all INCONCLUSIVE |
+| Five fresh undisturbed 32 s standing trials on accepted source | PASS, 5/5 on `a61d3f0`; automated telemetry only |
+| Four directions: pitch ±, roll ± | One paired pilot each on older source; all INCONCLUSIVE |
 | >=3 independently valid paired runs per direction (5 preferred) | PENDING |
 | Every trial peak response >=0.008 rad, initial target-axis tilt <0.08 rad | PENDING |
 | No FAULT, fall, root-height loss, unacceptable drift | No faults in pilots; full-matrix gate pending |

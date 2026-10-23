@@ -11,6 +11,7 @@ import argparse
 import html
 import json
 import math
+import re
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +26,7 @@ SMOKE_MIN_DURATION_S = SMOKE_TARGET_DURATION_S - SMOKE_DURATION_TOLERANCE_S
 
 
 def _read_metadata(
-    path: Path, profile: str
+    path: Path, profile: str, commit_sha: str, source_commit_sha: str
 ) -> tuple[dict[str, Any] | None, str | None]:
     try:
         value = json.loads(path.read_text(encoding="utf-8"))
@@ -40,6 +41,16 @@ def _read_metadata(
         return None, f"{path.name}: run_id does not match profile"
     if value.get("result") != "controller_exited":
         return None, f"{path.name}: controller did not exit successfully"
+    for field in ("build_commit", "source_commit_sha", "test_merge_sha"):
+        sha = value.get(field)
+        if not isinstance(sha, str) or re.fullmatch(r"[a-fA-F0-9]{40}", sha) is None:
+            return None, f"{path.name}: invalid {field.replace('_', '-')} provenance"
+    if value["build_commit"] != commit_sha:
+        return None, f"{path.name}: build commit does not match tested commit"
+    if value["source_commit_sha"] != source_commit_sha:
+        return None, f"{path.name}: source commit does not match expected source"
+    if value["test_merge_sha"] != commit_sha:
+        return None, f"{path.name}: test-merge commit does not match tested commit"
     final_state = value.get("final_state")
     if not isinstance(final_state, str) or not final_state.strip():
         return None, f"{path.name}: missing final_state"
@@ -57,9 +68,13 @@ def _read_metadata(
     return value, None
 
 
-def _metadata_summary(logs_dir: Path, profile: str) -> dict[str, Any]:
+def _metadata_summary(
+    logs_dir: Path, profile: str, commit_sha: str, source_commit_sha: str
+) -> dict[str, Any]:
     paths = tuple(sorted(logs_dir.glob(f"{profile}-*.json")))
-    parsed = tuple(_read_metadata(path, profile) for path in paths)
+    parsed = tuple(
+        _read_metadata(path, profile, commit_sha, source_commit_sha) for path in paths
+    )
     metadata = tuple(value for value, error in parsed if value is not None and error is None)
     errors = tuple(error for _, error in parsed if error is not None)
     runs = [
@@ -69,6 +84,9 @@ def _metadata_summary(logs_dir: Path, profile: str) -> dict[str, Any]:
             "result": value.get("result"),
             "final_state": value.get("final_state"),
             "sim_time_s": value.get("sim_time_s"),
+            "build_commit": value.get("build_commit"),
+            "source_commit_sha": value.get("source_commit_sha"),
+            "test_merge_sha": value.get("test_merge_sha"),
         }
         for value in metadata
     ]
@@ -169,12 +187,14 @@ def _markdown(report: dict[str, Any]) -> str:
     if metadata["runs"]:
         lines += [
             "",
-            "| Run ID | Mode | Result | Final state | Sim time (s) |",
-            "| --- | --- | --- | --- | ---: |",
+            "| Run ID | Mode | Result | Final state | Sim time (s) | Source SHA | Tested SHA |",
+            "| --- | --- | --- | --- | ---: | --- | --- |",
             *(
                 f"| {_markdown_value(run['run_id'])} | {_markdown_value(run['mode'])} | "
                 f"{_markdown_value(run['result'])} | {_markdown_value(run['final_state'])} | "
-                f"{_markdown_value(run['sim_time_s'])} |"
+                f"{_markdown_value(run['sim_time_s'])} | "
+                f"{_markdown_value(run['source_commit_sha'])} | "
+                f"{_markdown_value(run['test_merge_sha'])} |"
                 for run in metadata["runs"]
             ),
         ]
@@ -214,9 +234,10 @@ def create_report(
     logs_dir: Path,
     output_dir: Path,
     commit_sha: str,
+    source_commit_sha: str,
     run_url: str,
 ) -> dict[str, Any]:
-    metadata = _metadata_summary(logs_dir, profile)
+    metadata = _metadata_summary(logs_dir, profile, commit_sha, source_commit_sha)
     gate = _baseline_gate(output_dir, profile)
     metadata_ok = _metadata_evidence_ok(metadata, profile)
     overall = (
@@ -230,6 +251,7 @@ def create_report(
         "overall_success": overall,
         "statuses": {"offline": offline_status, "simulation": simulation_status},
         "commit_sha": commit_sha,
+        "source_commit_sha": source_commit_sha,
         "run_url": run_url,
         "metadata_summary": metadata,
         "baseline_gate": gate,
@@ -251,6 +273,7 @@ def main() -> int:
     parser.add_argument("--logs-dir", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--commit-sha", required=True)
+    parser.add_argument("--source-commit-sha", required=True)
     parser.add_argument("--run-url", required=True)
     args = parser.parse_args()
     report = create_report(
@@ -260,6 +283,7 @@ def main() -> int:
         logs_dir=args.logs_dir,
         output_dir=args.output_dir,
         commit_sha=args.commit_sha,
+        source_commit_sha=args.source_commit_sha,
         run_url=args.run_url,
     )
     print(f"CI report written: {'PASS' if report['overall_success'] else 'FAIL'}")

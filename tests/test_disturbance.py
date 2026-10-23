@@ -68,7 +68,7 @@ class DisturbanceTests(unittest.TestCase):
 
 
 def fixture(directory:Path, name:str, mode:str, peak:float, fault:bool=False,
-            inject:bool=True, onset=4.0, initial=.0)->Path:
+            inject:bool=True, onset=4.0, initial=.0, direction=1)->Path:
     p=directory / f'{name}.csv'
     cols=['run_id','t_s','mode','state','roll_rad','pitch_rad','root_height_m','root_x_m','root_z_m']
     with p.open('w',newline='') as f:
@@ -84,6 +84,7 @@ def fixture(directory:Path, name:str, mode:str, peak:float, fault:bool=False,
                     pitch_rad=initial+tilt,
                     root_height_m=.183 if not bad else .09,
                     root_x_m=0.,root_z_m=0.))
+    world_force=[0.,0.,.10 * direction] if type(direction) is int else [0.,0.,.10]
     meta={'run_id':name,'mode':mode,'result':'controller_exited',
           'source_commit_sha':'a'*40,
           'config_sha256':'b'*64,
@@ -91,8 +92,9 @@ def fixture(directory:Path, name:str, mode:str, peak:float, fault:bool=False,
           'simulation_timestep_s':0.016,
           'webots_version':'Webots R2025a mock-only',
           'fault_injection':None,
-          'disturbance':{'axis':'pitch','direction':1,'force_n':.10,'pulse_s':.112,
+          'disturbance':{'axis':'pitch','direction':direction,'force_n':.10,'pulse_s':.112,
                          'offset_m':.04,'onset_s':onset,
+                         'world_force_n':world_force,
                          'force_api_mode':'r2025a_ctypes_force_with_offset',
                          'applied_steps':7 if inject else 0,
                          'first_application_s':onset if inject else None}}
@@ -116,6 +118,51 @@ class ReportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             p=fixture(Path(tmp),'zero','balance',.001)
             self.assertEqual('INCONCLUSIVE',inspect_run(p)['verdict'])
+
+    def test_wrong_signed_response_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for direction, peak in ((1, -.04), (-1, .04)):
+                with self.subTest(direction=direction):
+                    p=fixture(Path(tmp),f'wrong-sign-{direction}','balance',peak,
+                              direction=direction)
+                    result=inspect_run(p)
+                    self.assertEqual('FAIL',result['verdict'])
+                    self.assertIn('wrong_signed_response',result['reasons'])
+
+    def test_initial_wrong_sign_cannot_be_hidden_by_later_larger_peak(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p=fixture(Path(tmp),'sign-reversal','balance',.04,direction=1)
+            with p.open(newline='', encoding='utf-8') as f:
+                rows=list(csv.DictReader(f))
+                fieldnames=list(rows[0])
+            for row in rows:
+                if 4.05 <= float(row['t_s']) < 4.13:
+                    row['pitch_rad']='-0.009'
+            with p.open('w',newline='',encoding='utf-8') as f:
+                writer=csv.DictWriter(f,fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(rows)
+            result=inspect_run(p)
+            self.assertEqual('FAIL',result['verdict'])
+            self.assertIn('wrong_signed_response',result['reasons'])
+
+    def test_invalid_direction_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for index, direction in enumerate((0, 1.9, True, '1')):
+                with self.subTest(direction=direction):
+                    p=fixture(Path(tmp),f'bad-direction-{index}','balance',.04,
+                              direction=direction)
+                    self.assertEqual('INVALID',inspect_run(p)['verdict'])
+
+    def test_force_vector_metadata_must_match_direction(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p=fixture(Path(tmp),'wrong-force-vector','balance',-.04,direction=-1)
+            meta=json.loads(p.with_suffix('.json').read_text())
+            meta['disturbance']['world_force_n']=[0.,0.,.10]
+            p.with_suffix('.json').write_text(json.dumps(meta))
+            result=inspect_run(p)
+            self.assertEqual('INVALID',result['verdict'])
+            self.assertIn('invalid_or_unapplied_force',result['reasons'])
 
     def test_fault_is_failure(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -74,6 +74,9 @@ jobs:
         shell: bash
         env:
           PROFILE: ${{ steps.profile.outputs.value }}
+          RL_H25_BUILD_COMMIT: ${{ github.sha }}
+          RL_H25_SOURCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          RL_H25_TEST_MERGE_SHA: ${{ github.sha }}
         run: |
           mkdir -p reports experiments/logs
           set +e
@@ -112,6 +115,7 @@ jobs:
             --logs-dir experiments/logs \
             --output-dir reports \
             --commit-sha "${{ github.sha }}" \
+            --source-commit-sha "${{ github.event.pull_request.head.sha || github.sha }}" \
             --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           cat reports/ci-report.md >> "$GITHUB_STEP_SUMMARY"
 

@@ -8,6 +8,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "tools" / "ci_report.py"
+COMMIT_SHA = "a" * 40
+SOURCE_COMMIT_SHA = "b" * 40
 
 
 class CiReportTests(unittest.TestCase):
@@ -35,7 +37,9 @@ class CiReportTests(unittest.TestCase):
                 "--output-dir",
                 str(self.output),
                 "--commit-sha",
-                "abc123",
+                COMMIT_SHA,
+                "--source-commit-sha",
+                SOURCE_COMMIT_SHA,
                 "--run-url",
                 "https://github.test/actions/runs/7",
             ],
@@ -55,6 +59,9 @@ class CiReportTests(unittest.TestCase):
             "result": "controller_exited",
             "final_state": "STAND",
             "sim_time_s": 8.0,
+            "build_commit": COMMIT_SHA,
+            "source_commit_sha": SOURCE_COMMIT_SHA,
+            "test_merge_sha": COMMIT_SHA,
         } | overrides
         (self.logs / f"{name}.json").write_text(json.dumps(value), encoding="utf-8")
 
@@ -76,6 +83,9 @@ class CiReportTests(unittest.TestCase):
                     "result": "controller_exited",
                     "final_state": "STAND",
                     "sim_time_s": 8.0,
+                    "build_commit": COMMIT_SHA,
+                    "source_commit_sha": SOURCE_COMMIT_SHA,
+                    "test_merge_sha": COMMIT_SHA,
                 }
             ),
             encoding="utf-8",
@@ -94,7 +104,7 @@ class CiReportTests(unittest.TestCase):
         self.assertEqual(report["metadata_summary"]["matched_files"], 1)
         self.assertEqual(report["metadata_summary"]["valid_files"], 1)
         markdown = (self.output / "ci-report.md").read_text(encoding="utf-8")
-        self.assertIn("abc123", markdown)
+        self.assertIn(COMMIT_SHA, markdown)
         self.assertIn("https://github.test/actions/runs/7", markdown)
         self.assertIn("does not certify standing stability", markdown)
 
@@ -304,6 +314,25 @@ class CiReportTests(unittest.TestCase):
                 report = self.read_json()
                 self.assertFalse(report["overall_success"])
                 self.assertEqual(report["metadata_summary"]["valid_files"], 0)
+
+    def test_provenance_must_be_valid_and_match_tested_commit(self):
+        invalid_runs = (
+            ("missing-source", {"source_commit_sha": "unverified"}),
+            ("wrong-source", {"source_commit_sha": "c" * 40}),
+            ("wrong-build", {"build_commit": "c" * 40}),
+            ("wrong-test-merge", {"test_merge_sha": "c" * 40}),
+        )
+        for name, overrides in invalid_runs:
+            with self.subTest(name=name):
+                for path in self.logs.glob("*.json"):
+                    path.unlink()
+                self.write_metadata(f"smoke-{name}", **overrides)
+                completed = self.run_report("smoke")
+                self.assertEqual(completed.returncode, 0, completed.stderr)
+                report = self.read_json()
+                self.assertFalse(report["overall_success"])
+                self.assertEqual(report["metadata_summary"]["valid_files"], 0)
+                self.assertIn(name.split("-")[-1], report["metadata_summary"]["errors"][0])
 
     def test_smoke_fault_is_structurally_valid_but_fails_smoke_evidence(self):
         self.write_metadata("smoke-fault", final_state="FAULT")

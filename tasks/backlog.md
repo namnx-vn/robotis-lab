@@ -15,7 +15,8 @@
 - [x] Experiment runner and telemetry validity checks; FAULT and absent excitation are not passes.
 - [x] Add four-case pitch+/pitch-/roll+/roll- matrix and fail-closed aggregate gate.
 - [x] Add Python 3.10/3.12 CI on pull requests; offline suite.
-- [ ] Operator: one-pair pilot matrix in native Webots R2025a.
+- [x] Native one-pair pilot matrix at source `5764732`: all four directions ran without FAULT but were `INCONCLUSIVE` because peak excitation was only `0.00012–0.00016 rad` (<`0.008 rad`).
+- [ ] Repeat the bounded pilot on the accepted source only after contact review and an approved excitation-protocol hypothesis.
 - [ ] Check whether all four directions receive measurable force without faults.
 - [ ] Operator: five matched pairs/direction only after pilot review.
 - [ ] Validate PID axis signs/gains from observed telemetry and controlled recovery.

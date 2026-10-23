@@ -10,13 +10,13 @@ Before starting, close other Webots instances, use an unmodified world, and veri
 
 ## Commands on the operator's Mac
 
-From the local repository root, use the **reviewed** P2 branch until it is merged to master. Use `git status` to protect local changes, and ensure Webots is actually R2025a via **Webots → About**.
+From the local repository root, use the current reviewed `master`. Use `git status` to protect local changes, record the exact commit before the run, and ensure Webots is actually R2025a via **Webots → About**.
 
 ```bash
-# The fix branch is deliberately not automatically merged.
 git fetch origin
-git switch fix/p2-ci-001-world-verification
+git switch master
 git pull --ff-only
+git status --short --branch
 python3 tools/verify_project.py
 python3 -m unittest discover -s tests -v
 
