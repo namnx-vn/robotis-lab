@@ -26,6 +26,8 @@ class ContactEvidence:
     def observe(
         self,
         contact_points: Iterable[object],
+        *,
+        root_x_m: float = 0.0,
     ) -> None:
         contacts = []
         for contact in contact_points:
@@ -53,9 +55,9 @@ class ContactEvidence:
                 self.solid_sample_counts.get(node_id, 0) + 1
             )
         if self.foot_mapping == "world_x_sign":
-            if any(contact["point_world_m"][0] < 0 for contact in contacts):
+            if any(contact["point_world_m"][0] < root_x_m for contact in contacts):
                 self.foot_sample_counts["left"] += 1
-            if any(contact["point_world_m"][0] >= 0 for contact in contacts):
+            if any(contact["point_world_m"][0] >= root_x_m for contact in contacts):
                 self.foot_sample_counts["right"] += 1
         self.sample_count += 1
         self.samples_with_contacts += count > 0

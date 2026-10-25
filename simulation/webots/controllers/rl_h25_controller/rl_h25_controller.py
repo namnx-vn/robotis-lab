@@ -212,7 +212,7 @@ def main() -> None:
                     disturbance.step(now, can_apply=state == "STAND")
                 if now >= log_next:
                     if contact_evidence is not None:
-                        contact_evidence.observe(robot_node.getContactPoints(True))
+                        contact_evidence.observe(robot_node.getContactPoints(True), root_x_m=x)
                     root_motion = (robot_node.getVelocity()
                                    if robot_node is not None else ("",) * 6)
                     root_com = (robot_node.getCenterOfMass()
