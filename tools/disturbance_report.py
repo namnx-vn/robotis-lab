@@ -151,9 +151,11 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
                 for actual, expected in zip(world_force, expected_force)
             )
         )
+        calibration_mode = dist.get("calibration_mode") is True
         if (axis not in ("pitch", "roll") or
                 not direction_valid or not force_vector_valid or
-                not 0.01 <= force <= 0.35 or
+                not 0.01 <= force <= 4.0 or
+                (force > 0.35 and not calibration_mode) or
                 not 0.016 <= duration <= 0.20 or not 0 <= offset <= 0.06 or
                 not 2 <= onset <= 15 or applied < 1 or
                 dist["first_application_s"] is None or
@@ -238,6 +240,7 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
                    log_period_s=meta["log_period_s"],
                    webots_version=meta["webots_version"],
                    force_api_mode=dist["force_api_mode"],
+                   calibration_mode=calibration_mode,
                    simulation_timestep_s=meta["simulation_timestep_s"],
                    contact_sample_count=contact_samples,
                    continuous_two_foot_contact=continuous_two_foot_contact,
@@ -279,6 +282,7 @@ def compare_pairs(pairs: list[tuple[Path, Path]]) -> dict:
                                     "build_commit", "source_commit_sha", "test_merge_sha",
                                     "config_sha256", "world_sha256", "software_version",
                                     "telemetry_schema_version",
+                                    "calibration_mode",
                                     "log_period_s", "webots_version", "force_api_mode",
                                     "simulation_timestep_s"))
                       and abs(base.get("applied_steps", -999)-balance.get("applied_steps", 999)) <= 1)

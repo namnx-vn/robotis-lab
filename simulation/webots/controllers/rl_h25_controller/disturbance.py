@@ -9,6 +9,8 @@ import ctypes
 import math
 from typing import Mapping
 
+CALIBRATION_MAX_FORCE_N = 4.0
+
 
 @dataclass(frozen=True)
 class DisturbanceSpec:
@@ -18,6 +20,7 @@ class DisturbanceSpec:
     pulse_s: float
     onset_s: float
     offset_m: float
+    calibration_mode: bool = False
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "DisturbanceSpec | None":
@@ -36,13 +39,18 @@ class DisturbanceSpec:
         pulse = float(env.get("RL_H25_DIST_PULSE_S", "0.112"))
         onset = float(env.get("RL_H25_DIST_ONSET_S", "4.0"))
         offset = float(env.get("RL_H25_DIST_OFFSET_M", "0.04"))
+        calibration = env.get("RL_H25_DIST_CALIBRATION", "0")
+        if calibration not in ("0", "1", ""):
+            raise ValueError("RL_H25_DIST_CALIBRATION must be 0 or 1")
         if not all(map(math.isfinite, (force, pulse, onset, offset))):
             raise ValueError("nonfinite disturbance parameter")
-        # Research simulation limits. Re-evaluate before trying larger excitations.
-        if not (0.01 <= force <= 0.35 and 0.016 <= pulse <= 0.20 and
+        calibration_mode = calibration == "1"
+        max_force = CALIBRATION_MAX_FORCE_N if calibration_mode else 0.35
+        # The calibration envelope is simulation-only and must be explicitly opted in.
+        if not (0.01 <= force <= max_force and 0.016 <= pulse <= 0.20 and
                 2.0 <= onset <= 15.0 and 0 <= offset <= 0.06):
             raise ValueError("disturbance outside safe experiment bounds")
-        return cls(axis, direction, force, pulse, onset, offset)
+        return cls(axis, direction, force, pulse, onset, offset, calibration_mode)
 
     def force_vector(self) -> list[float]:
         # NUE: Y-up, +Z creates pitch about X with a +Y offset;
@@ -54,6 +62,7 @@ class DisturbanceSpec:
         return dict(axis=self.axis, direction=self.direction,
                     force_n=self.force_n, pulse_s=self.pulse_s,
                     onset_s=self.onset_s, offset_m=self.offset_m,
+                    calibration_mode=self.calibration_mode,
                     world_force_n=self.force_vector())
 
 

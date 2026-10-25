@@ -57,7 +57,7 @@ class DisturbanceTests(unittest.TestCase):
         self.assertEqual([.1,0.,0.], spec.force_vector())
 
     def test_reject_unsafe(self):
-        for k,v in [('RL_H25_DIST_FORCE_N','3'),('RL_H25_DIST_PULSE_S','.8'),
+        for k,v in [('RL_H25_DIST_FORCE_N','5'),('RL_H25_DIST_PULSE_S','.8'),
                     ('RL_H25_DIST_ONSET_S','0'),('RL_H25_DIST_FORCE_N','nan'),
                     ('RL_H25_DIST_AXIS','yaw'),('RL_H25_DIST_DIRECTION','0'),
                     ('RL_H25_DIST_OFFSET_M','.7')]:
@@ -65,6 +65,15 @@ class DisturbanceTests(unittest.TestCase):
                 DisturbanceSpec.from_env({'RL_H25_DISTURBANCE':'1',k:v})
         with self.assertRaises(ValueError):
             DisturbanceSpec.from_env({'RL_H25_DISTURBANCE':'yes'})
+
+    def test_high_force_requires_explicit_calibration_mode(self):
+        with self.assertRaises(ValueError):
+            DisturbanceSpec.from_env({'RL_H25_DISTURBANCE':'1',
+                                      'RL_H25_DIST_FORCE_N':'1.0'})
+        spec = DisturbanceSpec.from_env({'RL_H25_DISTURBANCE':'1',
+                                         'RL_H25_DIST_FORCE_N':'1.0',
+                                         'RL_H25_DIST_CALIBRATION':'1'})
+        self.assertTrue(spec.calibration_mode)
 
 
 def fixture(directory:Path, name:str, mode:str, peak:float, fault:bool=False,
