@@ -1,9 +1,15 @@
 # P2.2 Acceptance Report — Controlled Disturbance & Active Balance Recovery
 
 **Status: INCONCLUSIVE — P2.2 not accepted; P3 remains blocked.**
-**Date:** 2026-10-23
+**Date:** 2026-10-25
 **Scope:** Webots-only compatibility, telemetry and regression tests. No hardware, PID gain/sign, robot mechanics, gait or safety-limit changes.
-**Accepted source audited:** `master` at `a61d3f0659a4fe9f9157eb911b52e251ae032edd`.
+**Accepted source audited:** P2 candidate branch at `b06de9a` (PR #15 remains unmerged).
+
+## 2026-10-25 gate-hardening and native pilot update
+
+The disturbance schema is now versioned (`telemetry_schema_version: 2`) and requires build/source/test provenance, finite root/IMU/COM telemetry, all ten target/measured/torque actuator channels, explicit left/right foot classification (`world_x_sign` relative to root X), and nonzero balance-mode correction plus target/measured actuator response. Recovery requires decay to both 0.025 rad and 50% of the observed peak for 0.8 s. Static-balance telemetry is recorded as supplementary evidence; continuous two-foot contact remains the hard support gate.
+
+An exact-source native Webots R2025a38 pilot at force `0.35 N`, pulse `0.20 s`, offset `0.06 m` completed all four pitch/roll directions without FAULT or contact loss. Peaks were only `0.00056–0.00081 rad` (pitch) and `0.00059–0.00064 rad` (roll), so every pair was `INCONCLUSIVE no_measurable_excitation` against the mandatory `0.008 rad` threshold. This is a calibration result, not active-balance evidence; P2.2 remains unaccepted and P3 remains blocked.
 
 ## Goal and baseline evidence
 

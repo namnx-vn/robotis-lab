@@ -13,6 +13,7 @@ This sprint measures whether active IMU feedback performs better than the open-l
 - Only an explicitly launched experiment enables this. No physical servo, Arduino, network or AI is involved. The existing tilt hard limit remains **0.45 rad**; DO NOT increase it to improve pass rate.
 - `tools/run_disturbance_trials.py`: starts completely fresh Webots processes for pairs: `baseline` then `balance`, repeated 3/5 times. Fixed random seed, world, model and all force parameters. Saves matching CSV + JSON.
 - `tools/disturbance_report.py`: rejects missing force evidence, inconsistent metadata, zero actual perturbation, initial tilt >0.08rad, time gaps, faults, insufficient post-pulse observation and non-unique session IDs. If an input is invalid/inconclusive, DO NOT treat it as a successful PID result.
+- Disturbance logs use telemetry schema v2. They must include build/source/test provenance, root angular velocity and COM, static-balance status, all ten joint target/measured/torque channels, and explicit left/right foot coverage. The analyzer also requires balance-mode correction and actuator response evidence; contact continuity is a hard gate.
 
 ## Force protocol (unverified initial assumptions)
 
@@ -26,6 +27,8 @@ This sprint measures whether active IMU feedback performs better than the open-l
 | Offset | +0.04 m local Y | 0..0.06 m |
 | Sampling period | 0.016 s | 0.016..0.20 s |
 | Total run | 14 s | Up to 60 s (runner) |
+
+The maximum bounded calibration pilot (`0.35 N`, `0.20 s`, `0.06 m`) remained below the `0.008 rad` excitation threshold in all four directions. It must therefore remain classified `INCONCLUSIVE`; do not infer PID recovery or improvement from it.
 
 Approximate nominal impulse: **0.0112 N·s**, ignoring mechanical joint compliance and exact timestep quantization. Effective torque, support polygon and actual COM response must be measured. Pulses can be shorter/longer by up to one step due to discrete simulation timing; metadata reports real applied-step count.
 
