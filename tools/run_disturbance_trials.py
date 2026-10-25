@@ -20,6 +20,7 @@ def main() -> int:
     ap.add_argument('--direction', type=int, choices=(-1, 1), default=1)
     ap.add_argument('--force', type=float, default=0.10, help='Newtons; 0.01 .. 0.35')
     ap.add_argument('--pulse', type=float, default=0.112, help='Seconds; 0.016 .. 0.20')
+    ap.add_argument('--offset', type=float, default=0.04, help='Meters; 0 .. 0.06')
     ap.add_argument('--onset', type=float, default=4.0, help='Seconds; 2 .. 15')
     ap.add_argument('--duration', type=float, default=14.0, help='Simulated total seconds')
     ap.add_argument('--timeout', type=float, default=180.0)
@@ -27,7 +28,8 @@ def main() -> int:
     args = ap.parse_args()
     if args.pairs < 1 or args.pairs > 10 or args.timeout <= 0 or not (args.onset + args.pulse + 6 <= args.duration <= 60):
         ap.error('pairs 1..10, timeout positive, duration 6s after end of pulse and <=60s')
-    if not (0.01 <= args.force <= .35 and .016 <= args.pulse <= .20 and 2 <= args.onset <= 15):
+    if not (0.01 <= args.force <= .35 and .016 <= args.pulse <= .20 and
+            0 <= args.offset <= .06 and 2 <= args.onset <= 15):
         ap.error('disturbance outside bounded envelope')
     exe = shutil.which(args.webots)
     if not exe:
@@ -39,7 +41,7 @@ def main() -> int:
            'RL_H25_DIST_FORCE_N': str(args.force),
            'RL_H25_DIST_PULSE_S': str(args.pulse),
            'RL_H25_DIST_ONSET_S': str(args.onset),
-           'RL_H25_DIST_OFFSET_M': '0.04',
+           'RL_H25_DIST_OFFSET_M': str(args.offset),
            'RL_H25_LOG_PERIOD_S': '0.016'}
     LOGDIR.mkdir(parents=True, exist_ok=True)
     pairs = []

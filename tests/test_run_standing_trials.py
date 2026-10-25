@@ -88,6 +88,17 @@ class WorkflowProvenanceTests(unittest.TestCase):
             workflow,
         )
 
+    def test_disturbance_workflow_exports_build_source_and_test_sha(self):
+        workflow = (ROOT / ".github/workflows/disturbance-pilot.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("RL_H25_BUILD_COMMIT: ${{ github.sha }}", workflow)
+        self.assertIn(
+            "RL_H25_SOURCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}",
+            workflow,
+        )
+        self.assertIn("RL_H25_TEST_MERGE_SHA: ${{ github.sha }}", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

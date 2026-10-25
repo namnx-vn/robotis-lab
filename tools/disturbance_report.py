@@ -21,19 +21,44 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
             reader = csv.DictReader(f)
             columns = set(reader.fieldnames or [])
             required = {"run_id", "t_s", "state", "roll_rad", "pitch_rad", "root_height_m",
-                        "root_x_m", "root_z_m", "mode"}
+                        "root_x_m", "root_z_m", "mode",
+                        "root_angular_velocity_x_rad_s", "root_angular_velocity_y_rad_s",
+                        "root_angular_velocity_z_rad_s", "root_com_x_m", "root_com_y_m",
+                        "root_com_z_m", "static_balance", "gyro_x_rad_s",
+                        "gyro_y_rad_s", "gyro_z_rad_s", "root_velocity_x_m_s",
+                        "root_velocity_y_m_s", "root_velocity_z_m_s",
+                        "pitch_correction_rad", "roll_correction_rad"}
             if not required <= columns:
                 raise ValueError("missing_csv_columns: " + ",".join(sorted(required - columns)))
+            target_bases = {name.removesuffix("_target_rad") for name in columns
+                            if name.endswith("_target_rad")}
+            measured_bases = {name.removesuffix("_measured_rad") for name in columns
+                              if name.endswith("_measured_rad")}
+            torque_bases = {name.removesuffix("_torque_feedback_nm") for name in columns
+                            if name.endswith("_torque_feedback_nm")}
+            if (len(target_bases) != 10 or target_bases != measured_bases or
+                    target_bases != torque_bases):
+                raise ValueError("missing_or_mismatched_actuator_observability")
+            actuator_columns = tuple(
+                f"{name}_{suffix}" for name in sorted(target_bases)
+                for suffix in ("target_rad", "measured_rad", "torque_feedback_nm")
+            )
             rows = list(reader)
         meta = json.loads(path.with_suffix(".json").read_text(encoding="utf-8"))
         dist = meta.get("disturbance")
         if not isinstance(dist, dict):
             raise ValueError("no_disturbance_metadata")
         # A source/matrix without force-method provenance cannot certify P2.2.
-        for field in ("source_commit_sha", "config_sha256", "world_sha256"):
+        for field in ("build_commit", "source_commit_sha", "test_merge_sha",
+                      "config_sha256", "world_sha256"):
             value = meta.get(field, "")
             if not isinstance(value, str) or re.fullmatch(r"[a-fA-F0-9]{40,64}", value) is None:
                 raise ValueError("missing_or_invalid_provenance:" + field)
+        if (meta.get("software_version") != "rlh25-v0.2" or
+                meta.get("telemetry_schema_version") != 2 or
+                not math.isclose(float(meta.get("log_period_s", 0)), 0.016,
+                                 rel_tol=0.0, abs_tol=1e-9)):
+            raise ValueError("invalid_controller_version_or_log_period")
         if (not str(meta.get("webots_version", "")).startswith("Webots R20") or
                 dist.get("force_api_mode") != "r2025a_ctypes_force_with_offset"):
             raise ValueError("unverified_webots_build_or_force_api")
@@ -45,13 +70,59 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
             raise ValueError("other_fault_injection_enabled")
         if len(rows) < 20:
             raise ValueError("too_few_samples")
+        contact = meta.get("contact_evidence")
+        if not isinstance(contact, dict):
+            raise ValueError("missing_contact_evidence")
+        try:
+            contact_samples = int(contact["sample_count"])
+            samples_with_contacts = int(contact["samples_with_contacts"])
+            min_contact_count = int(contact["min_contact_count"])
+            max_contact_count = int(contact["max_contact_count"])
+            contact_ids = contact["contact_solid_node_ids"]
+            samples_by_solid = contact["samples_by_solid_node_id"]
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("invalid_contact_evidence") from exc
+        if (contact_samples != len(rows) or contact_samples <= 0 or
+                not isinstance(contact_ids, list) or
+                not all(type(node_id) is int for node_id in contact_ids) or
+                not isinstance(samples_by_solid, dict) or
+                min_contact_count < 0 or max_contact_count < min_contact_count):
+            raise ValueError("invalid_contact_evidence")
+        foot_mapping = contact.get("foot_mapping")
+        samples_by_foot = contact.get("samples_by_foot")
+        if (foot_mapping != "world_x_sign"
+                or not isinstance(samples_by_foot, dict)):
+            raise ValueError("missing_explicit_foot_mapping")
+        continuous_two_foot_contact = (
+            samples_with_contacts == contact_samples
+            and min_contact_count > 0
+            and len(contact_ids) == 2
+            and len(set(contact_ids)) == 2
+            and all(samples_by_solid.get(str(node_id)) == contact_samples
+                    for node_id in contact_ids)
+            and all(samples_by_foot.get(name) == contact_samples
+                    for name in ("left", "right"))
+        )
         mode = meta.get("mode")
         if mode not in ("baseline", "balance") or (intended_mode and mode != intended_mode):
             raise ValueError("invalid_mode")
         if {r["run_id"] for r in rows} != {meta["run_id"]} or {r["mode"] for r in rows} != {mode}:
             raise ValueError("run_id_or_mode_mismatch")
-        numeric_cols = ("t_s", "roll_rad", "pitch_rad", "root_height_m", "root_x_m", "root_z_m")
-        data = [{k: float(r[k]) for k in numeric_cols} | {"state": r["state"]} for r in rows]
+        numeric_cols = ("t_s", "roll_rad", "pitch_rad", "root_height_m", "root_x_m",
+                        "root_z_m", "root_angular_velocity_x_rad_s",
+                        "root_angular_velocity_y_rad_s", "root_angular_velocity_z_rad_s",
+                        "root_com_x_m", "root_com_y_m", "root_com_z_m",
+                        "gyro_x_rad_s", "gyro_y_rad_s", "gyro_z_rad_s",
+                        "root_velocity_x_m_s", "root_velocity_y_m_s",
+                        "root_velocity_z_m_s", "pitch_correction_rad",
+                        "roll_correction_rad") + actuator_columns
+        data = []
+        for row in rows:
+            if row["static_balance"] not in ("True", "False"):
+                raise ValueError("invalid_static_balance_value")
+            data.append({k: float(row[k]) for k in numeric_cols} |
+                        {"state": row["state"],
+                         "static_balance": row["static_balance"] == "True"})
         if not all(math.isfinite(r[k]) for r in data for k in numeric_cols):
             raise ValueError("nonfinite_telemetry")
         times = [r["t_s"] for r in data]
@@ -118,16 +189,36 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
         x0, z0 = before[0]["root_x_m"], before[0]["root_z_m"]
         drift = max(math.hypot(r["root_x_m"]-x0, r["root_z_m"]-z0) for r in data)
         settle = None
-        # The return must stay inside 0.025 rad for at least 0.8s after peak.
+        # The return must stay inside both the absolute 0.025 rad band and
+        # 50% of this run's observed peak for at least 0.8 s after the peak.
+        # The relative predicate prevents a 0.008..0.025 rad excitation from
+        # being called recovered without any meaningful decay.
+        recovery_limit = min(0.025, 0.5 * peak)
         for i in range(peak_idx+1, len(after)):
-            if amp[i] > 0.025:
+            if amp[i] > recovery_limit:
                 continue
             until = after[i]["t_s"] + 0.8
             tail = [j for j in range(i,len(after)) if after[j]["t_s"] <= until]
-            if tail and after[tail[-1]]["t_s"] >= until-0.07 and all(amp[j] <= 0.025 for j in tail):
+            if (tail and after[tail[-1]]["t_s"] >= until-0.07 and
+                    all(amp[j] <= recovery_limit for j in tail)):
                 settle = round(after[i]["t_s"] - onset, 3)
                 break
         observed = first_measurable_signed is not None
+        axis_actuators = [name for name in target_bases
+                          if axis in name and ("hip" in name or "ankle" in name)]
+        correction_peak = max(abs(r[axis + "_correction_rad"]) for r in after)
+        pre_target = {name: sum(r[f"{name}_target_rad"] for r in before) / len(before)
+                      for name in target_bases}
+        target_excursion = max(
+            (abs(r[f"{name}_target_rad"] - pre_target[name]) for r in after
+             for name in axis_actuators), default=0.0)
+        measured_excursion = max(
+            (abs(r[f"{name}_measured_rad"] - pre_target[name]) for r in after
+             for name in axis_actuators), default=0.0)
+        actuation_evidence = (mode == "baseline" or
+                              (correction_peak >= 1e-7 and
+                               target_excursion >= 1e-7 and
+                               measured_excursion >= 1e-9))
         out.update(run_id=meta["run_id"], mode=mode, axis=axis, direction=direction,
                    force_n=force, pulse_s=duration, onset_s=onset, offset_m=offset,
                    applied_steps=applied, peak_tilt_change_rad=round(peak, 5),
@@ -138,16 +229,30 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
                    peak_signed_tilt_change_rad=round(signed_peak, 6),
                    first_measurable_signed_tilt_change_rad=(
                        round(first_measurable_signed, 6) if observed else None),
+                   build_commit=meta["build_commit"],
                    source_commit_sha=meta["source_commit_sha"],
-                   test_merge_sha=meta.get("test_merge_sha", "unverified"),
+                   test_merge_sha=meta["test_merge_sha"],
                    config_sha256=meta["config_sha256"], world_sha256=meta["world_sha256"],
+                   software_version=meta["software_version"],
+                   telemetry_schema_version=meta["telemetry_schema_version"],
+                   log_period_s=meta["log_period_s"],
                    webots_version=meta["webots_version"],
                    force_api_mode=dist["force_api_mode"],
                    simulation_timestep_s=meta["simulation_timestep_s"],
+                   contact_sample_count=contact_samples,
+                   continuous_two_foot_contact=continuous_two_foot_contact,
+                   actuation_evidence=actuation_evidence,
+                   static_balance_all_samples=all(r["static_balance"] for r in data),
                    duration_s=round(times[-1]-times[0],3))
         if fault or min_height < 0.10 or drift >= 0.10:
             out["verdict"] = "FAIL"
             failures.append("fault_fall_or_large_drift")
+        elif not continuous_two_foot_contact:
+            out["verdict"] = "FAIL"
+            failures.append("contact_or_support_loss")
+        elif not actuation_evidence:
+            out["verdict"] = "INCONCLUSIVE"
+            failures.append("no_balance_actuation_evidence")
         elif not observed:
             out["verdict"] = "INCONCLUSIVE"
             failures.append("no_measurable_excitation")
@@ -156,7 +261,7 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
             failures.append("wrong_signed_response")
         elif settle is None:
             out["verdict"] = "FAIL"
-            failures.append("did_not_settle_in_5s")
+            failures.append("did_not_recover_from_peak")
         else:
             out["verdict"] = "RECOVERED"
     except (OSError, KeyError, ValueError, TypeError, csv.Error, json.JSONDecodeError) as exc:
@@ -171,8 +276,11 @@ def compare_pairs(pairs: list[tuple[Path, Path]]) -> dict:
         balance = inspect_run(c, intended_mode="balance")
         compatible = (all(k in base and k in balance and base[k] == balance[k]
                           for k in ("axis", "direction", "force_n", "pulse_s", "onset_s", "offset_m",
-                                    "source_commit_sha", "config_sha256", "world_sha256",
-                                    "webots_version", "force_api_mode", "simulation_timestep_s"))
+                                    "build_commit", "source_commit_sha", "test_merge_sha",
+                                    "config_sha256", "world_sha256", "software_version",
+                                    "telemetry_schema_version",
+                                    "log_period_s", "webots_version", "force_api_mode",
+                                    "simulation_timestep_s"))
                       and abs(base.get("applied_steps", -999)-balance.get("applied_steps", 999)) <= 1)
         reports.append({"baseline": base, "balance": balance, "comparable": compatible})
     ids = [v[mode].get("run_id") for v in reports for mode in ("baseline", "balance")]

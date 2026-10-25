@@ -28,6 +28,8 @@ class FakeMotor:
     def setPosition(self, v): self.position = v
     def setVelocity(self, v): self.velocity = v
     def setAvailableTorque(self, v): self.torque = v
+    def enableTorqueFeedback(self, timestep): self.torque_feedback_timestep = timestep
+    def getTorqueFeedback(self): return 0.0
 
 
 class FakeSensor:
@@ -74,6 +76,11 @@ class FakeRobot:
 
 class FakeContactRobot(FakeRobot):
     def getSelf(self): return self
+    def getVelocity(self): return [0.0] * 6
+    def getCenterOfMass(self): return [0.0, 0.12, 0.0]
+    def getStaticBalance(self): return True
+    def getFromProtoDef(self, name):
+        return type("FakeNode", (), {"getId": lambda self: 11 if name == "LEFT_FOOT" else 12})()
     def enableContactPointsTracking(self, timestep, include_descendants):
         self.contact_tracking = (timestep, include_descendants)
     def getContactPoints(self, include_descendants):
@@ -126,6 +133,8 @@ class ControllerFakeTests(unittest.TestCase):
                     record["contact_evidence"]["contact_solid_node_ids"],
                 )
                 self.assertGreater(record["contact_evidence"]["sample_count"], 0)
+                self.assertEqual("True", rows[-1]["static_balance"])
+                self.assertEqual(0.12, float(rows[-1]["root_com_y_m"]))
             return record
 
     def test_normal(self): self.run_case("", "STAND")

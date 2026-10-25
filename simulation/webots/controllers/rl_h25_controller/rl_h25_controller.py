@@ -49,7 +49,7 @@ def main() -> None:
     step_ms = int(round(robot.getBasicTimeStep()))
     if step_ms <= 0:
         raise RuntimeError("invalid Webots time step")
-    contact_evidence = ContactEvidence() if contact_enabled else None
+    contact_evidence = ContactEvidence("world_x_sign") if contact_enabled else None
     if contact_evidence is not None:
         robot_node.enableContactPointsTracking(step_ms, True)
     sensors: dict[str, object] = {}
@@ -63,6 +63,8 @@ def main() -> None:
             raise RuntimeError("missing motor or joint sensor: " + name)
         motor.setVelocity(float(cfg["joints"][name]["max_velocity"]))
         motor.setPosition(spec.neutral)  # 0 rad for initial vertical stance
+        if disturbance_spec is not None:
+            motor.enableTorqueFeedback(step_ms)
         sensor.enable(step_ms)
         sensors[name], motors[name] = sensor, motor
 
@@ -105,6 +107,7 @@ def main() -> None:
         "run_id": run_id,
         "robot": cfg["robot"],
         "software_version": "rlh25-v0.2",
+        "telemetry_schema_version": 2,
         "config_sha256": hashlib.sha256(CONFIG_PATH.read_bytes()).hexdigest(),
         "build_commit": os.environ.get("RL_H25_BUILD_COMMIT", "unverified"),
         "source_commit_sha": os.environ.get("RL_H25_SOURCE_COMMIT_SHA", "unverified"),
@@ -131,10 +134,14 @@ def main() -> None:
                   "gyro_y_rad_s", "gyro_z_rad_s", "pitch_correction_rad",
                   "roll_correction_rad", "pitch_imu_rate_rad_s", "roll_imu_rate_rad_s",
                   "root_velocity_x_m_s", "root_velocity_y_m_s", "root_velocity_z_m_s",
+                  "root_angular_velocity_x_rad_s", "root_angular_velocity_y_rad_s",
+                  "root_angular_velocity_z_rad_s", "root_com_x_m", "root_com_y_m",
+                  "root_com_z_m", "static_balance",
                   "requested_force_x_n", "requested_force_y_n", "requested_force_z_n",
                   "applied_force_steps", "pulse_onset_s", "pulse_duration_s", "force_api_mode"]
     fieldnames += [name + "_target_rad" for name in joints]
     fieldnames += [name + "_measured_rad" for name in joints]
+    fieldnames += [name + "_torque_feedback_nm" for name in joints]
     total_steps = 0
     state = "BOOT"
     reason = ""
@@ -206,8 +213,12 @@ def main() -> None:
                 if now >= log_next:
                     if contact_evidence is not None:
                         contact_evidence.observe(robot_node.getContactPoints(True))
-                    root_velocity = (robot.getSelf().getVelocity()[:3]
-                                     if disturbance is not None else ("", "", ""))
+                    root_motion = (robot_node.getVelocity()
+                                   if robot_node is not None else ("",) * 6)
+                    root_com = (robot_node.getCenterOfMass()
+                                if robot_node is not None else ("",) * 3)
+                    static_balance = (robot_node.getStaticBalance()
+                                      if robot_node is not None else "")
                     req_force = (disturbance_spec.force_vector()
                                  if disturbance_spec is not None else ("", "", ""))
                     record = dict(run_id=run_id, t_s=f"{now:.4f}", dt_s=dt,
@@ -220,9 +231,14 @@ def main() -> None:
                                   roll_correction_rad=stand.corrections["roll"],
                                   pitch_imu_rate_rad_s=stand.pitch_pid.filtered_rate,
                                   roll_imu_rate_rad_s=stand.roll_pid.filtered_rate,
-                                  root_velocity_x_m_s=root_velocity[0],
-                                  root_velocity_y_m_s=root_velocity[1],
-                                  root_velocity_z_m_s=root_velocity[2],
+                                  root_velocity_x_m_s=root_motion[0],
+                                  root_velocity_y_m_s=root_motion[1],
+                                  root_velocity_z_m_s=root_motion[2],
+                                  root_angular_velocity_x_rad_s=root_motion[3],
+                                  root_angular_velocity_y_rad_s=root_motion[4],
+                                  root_angular_velocity_z_rad_s=root_motion[5],
+                                  root_com_x_m=root_com[0], root_com_y_m=root_com[1],
+                                  root_com_z_m=root_com[2], static_balance=static_balance,
                                   requested_force_x_n=req_force[0],
                                   requested_force_y_n=req_force[1],
                                   requested_force_z_n=req_force[2],
@@ -232,6 +248,10 @@ def main() -> None:
                                   force_api_mode=(disturbance.force_api.mode if disturbance else ""))
                     record.update({name + "_target_rad": target for name, target in targets.items()})
                     record.update({name + "_measured_rad": value for name, value in measured.items()})
+                    record.update({name + "_torque_feedback_nm":
+                                   (motors[name].getTorqueFeedback()
+                                    if disturbance is not None else "")
+                                   for name in joints})
                     writer.writerow(record)
                     f.flush()
                     log_next = now + log_period

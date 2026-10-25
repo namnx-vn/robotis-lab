@@ -18,9 +18,11 @@ class MatrixValidationTests(unittest.TestCase):
         self.assertEqual(set(CASES), {("pitch", 1), ("pitch", -1), ("roll", 1), ("roll", -1)})
 
     def test_reject_unsafe_or_unproductive_runs(self):
-        valid = dict(pairs=1, force=.1, pulse=.112, onset=4., duration=14., timeout=180.)
+        valid = dict(pairs=1, force=.1, pulse=.112, offset=.04,
+                     onset=4., duration=14., timeout=180.)
         for k, value in (("pairs", 2), ("pairs", 20), ("force", float("nan")),
                          ("force", .9), ("pulse", 1.), ("onset", 0.),
+                         ("offset", -.01), ("offset", .07),
                          ("duration", 5.), ("timeout", 0.)):
             with self.subTest(k=k), self.assertRaises(ValueError):
                 validate_experiment(**(valid | {k: value}))

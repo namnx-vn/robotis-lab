@@ -41,6 +41,7 @@ jobs:
         if: steps.force_probe.outcome == 'success'
         shell: bash
         env:
+          RL_H25_BUILD_COMMIT: ${{ github.sha }}
           RL_H25_SOURCE_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           RL_H25_TEST_MERGE_SHA: ${{ github.sha }}
         run: |

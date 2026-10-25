@@ -21,13 +21,17 @@ CASES = (("pitch", 1), ("pitch", -1), ("roll", 1), ("roll", -1))
 
 
 def validate_experiment(*, pairs: int, force: float, pulse: float,
-                        onset: float, duration: float, timeout: float) -> None:
+                        offset: float, onset: float, duration: float,
+                        timeout: float) -> None:
     if pairs not in (1, 3, 4, 5):
         raise ValueError("--pairs must be 1 (pilot) or 3..5 (full gate)")
-    if not all(math.isfinite(v) for v in (force, pulse, onset, duration, timeout)):
+    if not all(math.isfinite(v) for v in
+               (force, pulse, offset, onset, duration, timeout)):
         raise ValueError("all numeric settings must be finite")
     if not (0.01 <= force <= 0.35 and 0.016 <= pulse <= 0.20):
         raise ValueError("force/pulse outside bounded simulation limits")
+    if not 0 <= offset <= 0.06:
+        raise ValueError("offset outside bounded simulation limits")
     if not (2.0 <= onset <= 15.0 and onset + pulse + 6 <= duration <= 60.0):
         raise ValueError("run duration must provide >=6s post-pulse observation, <=60s")
     if timeout <= 0:
@@ -64,10 +68,11 @@ def overall_gate(cases: list[dict], *, pilot: bool) -> str:
 
 
 def run_matrix(*, executable: str, pairs: int, force: float, pulse: float,
-               onset: float, duration: float, timeout: float, graphics: bool = False,
+               offset: float, onset: float, duration: float, timeout: float,
+               graphics: bool = False,
                stop_on_concern: bool = True) -> dict:
-    validate_experiment(pairs=pairs, force=force, pulse=pulse, onset=onset,
-                        duration=duration, timeout=timeout)
+    validate_experiment(pairs=pairs, force=force, pulse=pulse, offset=offset,
+                        onset=onset, duration=duration, timeout=timeout)
     LOGDIR.mkdir(parents=True, exist_ok=True)
     entries: list[dict] = []
     for axis, direction in CASES:
@@ -77,7 +82,7 @@ def run_matrix(*, executable: str, pairs: int, force: float, pulse: float,
             "RL_H25_DIST_FORCE_N": str(force),
             "RL_H25_DIST_PULSE_S": str(pulse),
             "RL_H25_DIST_ONSET_S": str(onset),
-            "RL_H25_DIST_OFFSET_M": "0.04",
+            "RL_H25_DIST_OFFSET_M": str(offset),
             "RL_H25_LOG_PERIOD_S": "0.016",
         }
         files = []
@@ -106,7 +111,7 @@ def run_matrix(*, executable: str, pairs: int, force: float, pulse: float,
         "pilot": pairs == 1,
         "settings": {"pairs_per_direction": pairs, "force_n": force,
                      "pulse_s": pulse, "onset_s": onset,
-                     "duration_s": duration, "offset_m": 0.04},
+                     "duration_s": duration, "offset_m": offset},
         "cases": entries, "gate": overall_gate(entries, pilot=pairs == 1),
         "caveat": "Webots simulation only. Contact, torque, sensor noise and hardware not certified."
     }
@@ -119,6 +124,7 @@ def main() -> int:
     ap.add_argument("--pairs", type=int, default=1, help="1=pilot; 3..5=full gate")
     ap.add_argument("--force", type=float, default=0.10)
     ap.add_argument("--pulse", type=float, default=0.112)
+    ap.add_argument("--offset", type=float, default=0.04)
     ap.add_argument("--onset", type=float, default=4.0)
     ap.add_argument("--duration", type=float, default=14.0)
     ap.add_argument("--timeout", type=float, default=180.0)
@@ -129,12 +135,14 @@ def main() -> int:
     args = ap.parse_args()
     try:
         validate_experiment(pairs=args.pairs, force=args.force, pulse=args.pulse,
-                            onset=args.onset, duration=args.duration, timeout=args.timeout)
+                            offset=args.offset, onset=args.onset,
+                            duration=args.duration, timeout=args.timeout)
     except ValueError as exc:
         ap.error(str(exc))
     if args.dry_run:
         print(json.dumps({"cases": CASES, "pairs": args.pairs, "force_n": args.force,
-                          "pulse_s": args.pulse, "onset_s": args.onset,
+                          "pulse_s": args.pulse, "offset_m": args.offset,
+                          "onset_s": args.onset,
                           "duration_s": args.duration, "native_webots": "NOT_RUN"}, indent=2))
         return 0
     binary = shutil.which(args.webots)
@@ -142,8 +150,9 @@ def main() -> int:
         print("ERROR: Webots executable missing; use --webots absolute macOS binary path", file=sys.stderr)
         return 2
     result = run_matrix(executable=binary, pairs=args.pairs, force=args.force,
-                        pulse=args.pulse, onset=args.onset, duration=args.duration,
-                        timeout=args.timeout, graphics=args.graphics,
+                        pulse=args.pulse, offset=args.offset, onset=args.onset,
+                        duration=args.duration, timeout=args.timeout,
+                        graphics=args.graphics,
                         stop_on_concern=not args.continue_on_concern)
     LOGDIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
