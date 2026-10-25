@@ -3,13 +3,14 @@
 ## P1 — Initial Webots RL-H25 skeleton (completed for native launch)
 - [x] Webots R2025a parser and 10 DOF geometry seen running on operator macOS.
 - [x] Add IMU/gyro/accelerometer/GPS/camera/distance telemetry and Physics.
-- [ ] Visually verify bounding boxes, both foot contacts and absence of false static anchoring in Webots.
-- [x] Record aggregate headless native contact telemetry with two descendant foot-solid IDs across five independent 32 s baseline trials (PR #15 run #42); retain GUI validation above.
+- [x] Visually verify bounding boxes and both foot contacts in an exact-source, operator-authorized tool-assisted Webots session; no visible indication of false static anchoring (PR #15 candidate `24ac0c5`).
+- [x] Record native contact telemetry with both descendant foot-solid IDs in every sample across five independent 32 s baseline trials (PR #15 run #43).
 
 ## P2.1 — Static standing baseline (automated gate passed)
 - [x] Bounded IMU pitch/roll PID implemented (offline tests; native recovery unverified).
 - [x] Native Webots baseline: operator-reported **5/5 PASS**, 31.92 s each, no FAULT.
-- [ ] Upload or attach real CSV/JSON runs for independent analysis; confirm foot contact GUI observations.
+- [x] Confirm foot-contact GUI observation against real CSV/JSON from the exact PR candidate; preserve raw GUI artifacts locally under Git-ignore.
+- [ ] Publish or attach sanitized GUI artifacts if an independent external review requires them; do not upload raw data by default.
 
 ## P2.2 — Controlled balance recovery (current sprint)
 - [x] Opt-in, bounded Supervisor pulse for matched baseline/balance simulations.

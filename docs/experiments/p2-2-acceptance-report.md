@@ -25,7 +25,7 @@ PR [#14](https://github.com/namnx-vn/robotis-lab/pull/14) is merged, issue [#12]
 
 The PR #14 disturbance pilot remained scientifically inconclusive: at 0.10 N for 0.112 s, the reviewed pitch-positive pair measured only `0.00012 rad` baseline and `0.00016 rad` active balance, both below `0.008 rad`. Its report explicitly sets `scientific_balance_certified=false`. The current report gate is being hardened to reject a first measurable response in the wrong requested direction and to reject mismatched source/test provenance; these evidence-integrity changes do not make the old pilot conclusive.
 
-PR [#15](https://github.com/namnx-vn/robotis-lab/pull/15) adds that fail-closed sign/provenance validation and bounded native contact aggregation without changing joint commands, PID gains, safety limits, collision geometry or world physics. Its [five-trial native baseline](https://github.com/namnx-vn/robotis-lab/actions/runs/39979744493) on source/test SHA `b53e887e00b26b51b9ac7096e892deb7ca58fac5` passed 5/5 at 32 s. Every trial had 286/286 contact samples, eight points per sample and exactly two descendant contact-solid IDs with 1,144 observations each. This is strong headless two-foot-contact evidence, but the PR is unmerged and the required GUI inspection for anchoring, interpenetration and slip is still pending.
+PR [#15](https://github.com/namnx-vn/robotis-lab/pull/15) adds that fail-closed sign/provenance validation and bounded native contact aggregation without changing joint commands, PID gains, safety limits, collision geometry or world physics. Its final [five-trial native baseline](https://github.com/namnx-vn/robotis-lab/actions/runs/39980857060) on source/test SHA `24ac0c5e29f8869a40e1f942a3948d8d86a72ad1` passed 5/5 at 32 s. Every trial had 286/286 contact samples, eight points per sample, and both descendant contact-solid IDs in every sample with 1,144 observations each. A separate exact-source interactive GUI run completed 32 s in `STAND` with no fault while contact points and bounding objects were visible; unchanged early/late side views and a supplemental top view showed plausible contact at both feet without visible penetration, hovering or unexplained slip. This supports the static-contact gate for the unmerged PR candidate, not active recovery or load distribution.
 
 ## Source root cause, fix and trade-offs
 
@@ -98,7 +98,7 @@ If a direction is `INCONCLUSIVE`, `FAIL` or has unexplained drift/fault, stop an
 | Settle within 0.025 rad for >=0.8s within 5s | PENDING |
 | >=10% mean peak reduction for PID vs baseline **per direction** | PENDING |
 | Independent run IDs, matching force schedule, source/config/world/version provenance | PASS for 0.10 N pilot and calibration pairs |
-| Foot contact, no interpenetration, anchoring or unexplained slip | HEADLESS_AGGREGATE_EVIDENCE on 5×32 s; PENDING_OPERATOR_VISUAL_CHECK |
+| Foot contact, no interpenetration, anchoring or unexplained slip | PASS for static contact on PR #15 candidate: 5×32 s exact-source telemetry plus a 32 s tool-assisted GUI observation; no active-recovery/load-distribution claim |
 
 The acceptance matrix must retain failed runs, first-fault times, CSV/JSON/console logs and run IDs. **No `ACCEPTED` claim until all mandatory evidence is present.** P3 gait is blocked.
 
@@ -106,4 +106,4 @@ The acceptance matrix must retain failed runs, first-fault times, CSV/JSON/conso
 
 **Risks:** The free-body diagnostic validates the C API and frame/offset semantics, but not RL-H25 contact forces, foot slip or torque. All robot tilt peaks at 0.10–0.20 N are at least 25× below the required excitation gate, so PID effectiveness/sign cannot be inferred. Controller motors are idealized; friction and sensor noise are not characterized.
 
-**Next action:** Complete the GUI Webots contact/bounding-object observation, then review a separately proposed excitation-protocol hypothesis. Do not tune PID or escalate force from the sub-threshold runs. Run >=3 paired trials per direction only after a reviewed safe pilot reaches >=0.008 rad. P2.2 remains INCONCLUSIVE and P3 gait remains blocked.
+**Next action:** Review a separately proposed excitation-protocol hypothesis. Do not tune PID or escalate force from the sub-threshold runs. Run >=3 paired trials per direction only after a reviewed safe pilot reaches >=0.008 rad. P2.2 remains INCONCLUSIVE and P3 gait remains blocked.
