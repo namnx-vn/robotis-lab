@@ -1,0 +1,180 @@
+{
+  "project_id": "robotis-lab",
+  "robot": "RL-H25",
+  "inventory_date": "2026-10-25",
+  "source": "user photographs in conversation",
+  "assessment": "visual only, not electrically tested",
+  "item_count_types": 15,
+  "items": [
+    {
+      "id": "HW-001",
+      "name": "Arduino Uno compatible",
+      "model_or_marking": "UNO R3-style",
+      "quantity_min_visible": 1,
+      "actual_quantity": null,
+      "status": "PHOTO_IDENTIFIED_UNTESTED",
+      "relevance": "control",
+      "evidence_image": "image-1791623312298.jpg"
+    },
+    {
+      "id": "HW-002",
+      "name": "ULN2003 driver board",
+      "model_or_marking": "ULN2003/ULN2003AN (previous identification)",
+      "quantity_min_visible": 1,
+      "actual_quantity": null,
+      "status": "PHOTO_IDENTIFIED_UNTESTED",
+      "relevance": "optional",
+      "evidence_image": "image-1791623230190.jpg"
+    },
+    {
+      "id": "HW-003",
+      "name": "RTC module",
+      "model_or_marking": "DS1302",
+      "quantity_min_visible": 1,
+      "actual_quantity": null,
+      "status": "PHOTO_IDENTIFIED_UNTESTED",
+      "relevance": "optional",
+      "evidence_image": "image-1791623499788.jpg"
+    },
+    {
+      "id": "HW-004",
+      "name": "Character LCD",
+      "model_or_marking": "1602A Ver5.5",
+      "quantity_min_visible": 1,
+      "actual_quantity": null,
+      "status": "PHOTO_IDENTIFIED_UNTESTED",
+      "relevance": "useful",
+      "evidence_image": "image-1791623584326.jpg"
+    },
+    {
+      "id": "HW-005",
+      "name": "RFID reader",
+      "model_or_marking": "RFID-RC522",
+      "quantity_min_visible": 1,
+      "actual_quantity": null,
+      "status": "PHOTO_IDENTIFIED_UNTESTED",
+      "relevance": "optional",
+      "evidence_image": "image-1791623614481.jpg"
+    },
+    {
+      "id": "HW-006",
+      "name": "1-channel relay module",
+      "model_or_marking": "JQC-3FF-S-Z 5VDC",
+      "quantity_min_visible": 1,
+      "actual_quantity": null,
+      "status": "PHOTO_IDENTIFIED_UNTESTED",
+      "relevance": "optional",
+      "evidence_image": "image-1791623664307.jpg"
+    },
+    {
+      "id": "HW-007",
+      "name": "4-digit 7-segment display",
+      "model_or_marking": "5461AS-1",
+      "quantity_min_visible": 1,
+      "actual_quantity": null,
+      "status": "PHOTO_IDENTIFIED_UNTESTED",
+      "relevance": "optional",
+      "evidence_image": "image-1791623686639.jpg"
+    },
+    {
+      "id": "HW-008",
+      "name": "8x8 LED dot matrix",
+      "model_or_marking": "unverified",
+      "quantity_min_visible": 1,
+      "actual_quantity": null,
+      "status": "PHOTO_IDENTIFIED_UNTESTED",
+      "relevance": "optional",
+      "evidence_image": "image-1791623686639.jpg"
+    },
+    {
+      "id": "HW-009",
+      "name": "1-digit 7-segment display",
+      "model_or_marking": "unverified",
+      "quantity_min_visible": 1,
+      "actual_quantity": null,
+      "status": "PHOTO_IDENTIFIED_UNTESTED",
+      "relevance": "optional",
+      "evidence_image": "image-1791623809326.jpg"
+    },
+    {
+      "id": "HW-010",
+      "name": "IR-style remote control",
+      "model_or_marking": "21-key style, protocol unverified",
+      "quantity_min_visible": 1,
+      "actual_quantity": null,
+      "status": "PHOTO_IDENTIFIED_UNTESTED",
+      "relevance": "optional",
+      "evidence_image": "image-1791623686639.jpg"
+    },
+    {
+      "id": "HW-011",
+      "name": "Analog joystick + switch",
+      "model_or_marking": "HW-504/KY-023-style",
+      "quantity_min_visible": 1,
+      "actual_quantity": null,
+      "status": "PHOTO_IDENTIFIED_UNTESTED",
+      "relevance": "useful",
+      "evidence_image": "image-1791623686639.jpg"
+    },
+    {
+      "id": "HW-012",
+      "name": "Sound detection sensor",
+      "model_or_marking": "microphone comparator module, IC unverified",
+      "quantity_min_visible": 1,
+      "actual_quantity": null,
+      "status": "PHOTO_IDENTIFIED_UNTESTED",
+      "relevance": "optional",
+      "evidence_image": "image-1791623754477.jpg"
+    },
+    {
+      "id": "HW-013",
+      "name": "Temperature/humidity sensor",
+      "model_or_marking": "DHT11 module",
+      "quantity_min_visible": 1,
+      "actual_quantity": null,
+      "status": "PHOTO_IDENTIFIED_UNTESTED",
+      "relevance": "optional",
+      "evidence_image": "image-1791623809326.jpg"
+    },
+    {
+      "id": "HW-014",
+      "name": "Water sensor",
+      "model_or_marking": "Water Sensor labeled",
+      "quantity_min_visible": 1,
+      "actual_quantity": null,
+      "status": "PHOTO_IDENTIFIED_UNTESTED",
+      "relevance": "optional",
+      "evidence_image": "image-1791623809326.jpg"
+    },
+    {
+      "id": "HW-015",
+      "name": "Multi-key tactile keypad PCB",
+      "model_or_marking": "unverified",
+      "quantity_min_visible": 1,
+      "actual_quantity": null,
+      "status": "PHOTO_IDENTIFIED_UNTESTED",
+      "relevance": "optional",
+      "evidence_image": "image-1791623809326.jpg"
+    }
+  ],
+  "possible_accessories_unverified": [
+    "white RFID-like card seen inside RC522 package",
+    "CR2032 coin cell installed in RTC module"
+  ],
+  "not_confirmed": [
+    "servo motors",
+    "PCA9685",
+    "IMU",
+    "distance sensor",
+    "camera",
+    "suitable servo power supply",
+    "E-STOP",
+    "robot chassis",
+    "jumper wires",
+    "breadboard",
+    "USB cable",
+    "test instruments"
+  ],
+  "phase": "P0",
+  "next_action": "physical count, part number and function tests before purchase decisions"
+}
