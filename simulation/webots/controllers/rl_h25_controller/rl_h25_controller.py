@@ -49,7 +49,19 @@ def main() -> None:
     step_ms = int(round(robot.getBasicTimeStep()))
     if step_ms <= 0:
         raise RuntimeError("invalid Webots time step")
-    contact_evidence = ContactEvidence("world_x_sign") if contact_enabled else None
+    foot_nodes = {}
+    if contact_enabled:
+        foot_nodes = {
+            name: robot_node.getFromProtoDef(proto_def)
+            for name, proto_def in (("left", "LEFT_FOOT"), ("right", "RIGHT_FOOT"))
+        }
+        if any(node is None for node in foot_nodes.values()):
+            raise RuntimeError("missing LEFT_FOOT or RIGHT_FOOT PROTO node")
+        contact_evidence = ContactEvidence(
+            {name: node.getId() for name, node in foot_nodes.items()}
+        )
+    else:
+        contact_evidence = None
     if contact_evidence is not None:
         robot_node.enableContactPointsTracking(step_ms, True)
     sensors: dict[str, object] = {}
@@ -137,7 +149,11 @@ def main() -> None:
                   "root_velocity_x_m_s", "root_velocity_y_m_s", "root_velocity_z_m_s",
                   "root_angular_velocity_x_rad_s", "root_angular_velocity_y_rad_s",
                   "root_angular_velocity_z_rad_s", "root_com_x_m", "root_com_y_m",
-                  "root_com_z_m", "static_balance",
+                  "root_com_z_m", "static_balance", "left_foot_contact",
+                  "right_foot_contact", "left_contact_count", "right_contact_count",
+                  "left_foot_x_m", "left_foot_y_m", "left_foot_z_m",
+                  "right_foot_x_m", "right_foot_y_m", "right_foot_z_m",
+                  "com_support_margin_m", "support_polygon_xz_json",
                   "requested_force_x_n", "requested_force_y_n", "requested_force_z_n",
                   "applied_force_steps", "pulse_onset_s", "pulse_duration_s", "force_api_mode"]
     fieldnames += [name + "_target_rad" for name in joints]
@@ -212,14 +228,27 @@ def main() -> None:
                 if disturbance is not None:
                     disturbance.step(now, can_apply=state == "STAND")
                 if now >= log_next:
-                    if contact_evidence is not None:
-                        contact_evidence.observe(robot_node.getContactPoints(True), root_x_m=x)
                     root_motion = (robot_node.getVelocity()
                                    if robot_node is not None else ("",) * 6)
                     root_com = (robot_node.getCenterOfMass()
                                 if robot_node is not None else ("",) * 3)
                     static_balance = (robot_node.getStaticBalance()
                                       if robot_node is not None else "")
+                    support_sample = None
+                    if contact_evidence is not None:
+                        support_sample = contact_evidence.observe(
+                            robot_node.getContactPoints(True),
+                            com_world_m=root_com,
+                            foot_positions_world_m={
+                                name: node.getPosition() for name, node in foot_nodes.items()
+                            },
+                        )
+                    contacts = (support_sample["contacts_by_foot"]
+                                if support_sample is not None else {})
+                    contact_counts = (support_sample["contact_counts_by_foot"]
+                                      if support_sample is not None else {})
+                    foot_positions = (support_sample["foot_positions_world_m"]
+                                      if support_sample is not None else {})
                     req_force = (disturbance_spec.force_vector()
                                  if disturbance_spec is not None else ("", "", ""))
                     record = dict(run_id=run_id, t_s=f"{now:.4f}", dt_s=dt,
@@ -240,6 +269,25 @@ def main() -> None:
                                   root_angular_velocity_z_rad_s=root_motion[5],
                                   root_com_x_m=root_com[0], root_com_y_m=root_com[1],
                                   root_com_z_m=root_com[2], static_balance=static_balance,
+                                  left_foot_contact=contacts.get("left", ""),
+                                  right_foot_contact=contacts.get("right", ""),
+                                  left_contact_count=contact_counts.get("left", ""),
+                                  right_contact_count=contact_counts.get("right", ""),
+                                  left_foot_x_m=(foot_positions.get("left", ("",) * 3)[0]),
+                                  left_foot_y_m=(foot_positions.get("left", ("",) * 3)[1]),
+                                  left_foot_z_m=(foot_positions.get("left", ("",) * 3)[2]),
+                                  right_foot_x_m=(foot_positions.get("right", ("",) * 3)[0]),
+                                  right_foot_y_m=(foot_positions.get("right", ("",) * 3)[1]),
+                                  right_foot_z_m=(foot_positions.get("right", ("",) * 3)[2]),
+                                  com_support_margin_m=(
+                                      support_sample["com_support_margin_m"]
+                                      if support_sample is not None else ""
+                                  ),
+                                  support_polygon_xz_json=(
+                                      json.dumps(support_sample["support_polygon_xz_m"],
+                                                 separators=(",", ":"))
+                                      if support_sample is not None else ""
+                                  ),
                                   requested_force_x_n=req_force[0],
                                   requested_force_y_n=req_force[1],
                                   requested_force_z_n=req_force[2],

@@ -26,6 +26,8 @@
 
 ## P3 — Weight shift and gait (BLOCKED)
 - [ ] Gate: >=3 matched comparable pairs **for each of four directions**, >=10% lower peak tilt with balance, no FAULT and measured recovery; validate contact/friction.
+- [x] Add non-actuating P3-A source/mock observability for exact foot contacts, foot pose and COM/support polygon; native Webots validation remains pending.
+- [ ] Validate P3-A neutral double support in native Webots with finite positive COM margin and GUI contact evidence.
 - [ ] Only after gate approval: supported weight shift, then single simulation step with contact logs.
 
 ## Hardware (NOT STARTED)

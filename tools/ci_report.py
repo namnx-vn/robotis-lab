@@ -84,6 +84,29 @@ def _contact_evidence_error(value: Any) -> str | None:
     ):
         return "contact observations conflict with point range"
 
+    foot_mapping = value.get("foot_mapping")
+    if foot_mapping is not None:
+        samples_by_foot = value.get("samples_by_foot")
+        if (
+            not isinstance(samples_by_foot, dict)
+            or set(samples_by_foot) != {"left", "right"}
+            or any(type(count) is not int or count != sample_count
+                   for count in samples_by_foot.values())
+        ):
+            return "invalid foot mapping sample counts"
+        if foot_mapping == "solid_node_id":
+            foot_node_ids = value.get("foot_node_ids")
+            if (
+                not isinstance(foot_node_ids, dict)
+                or set(foot_node_ids) != {"left", "right"}
+                or any(type(node_id) is not int or node_id <= 0
+                       for node_id in foot_node_ids.values())
+                or set(foot_node_ids.values()) != set(node_ids)
+            ):
+                return "invalid foot mapping"
+        elif foot_mapping != "world_x_sign":
+            return "invalid foot mapping"
+
     min_y = value.get("min_world_y_m")
     max_y = value.get("max_world_y_m")
     if (

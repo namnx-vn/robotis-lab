@@ -379,6 +379,64 @@ class ReportTests(unittest.TestCase):
                     self.assertEqual(expected, result['verdict'])
                     self.assertTrue(any('contact' in reason for reason in result['reasons']))
 
+    def test_explicit_foot_node_mapping_is_accepted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = fixture(Path(tmp), 'explicit-foot-map', 'balance', .04)
+            meta = json.loads(p.with_suffix('.json').read_text())
+            meta['contact_evidence'].update(
+                foot_mapping='solid_node_id',
+                foot_node_ids={'left': 78, 'right': 138},
+            )
+            p.with_suffix('.json').write_text(json.dumps(meta))
+
+            self.assertEqual('RECOVERED', inspect_run(p)['verdict'])
+
+    def test_explicit_mapping_preserves_contact_loss_and_body_contact_as_failures(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            cases = (
+                {
+                    'contact_solid_node_ids': [78],
+                    'samples_by_solid_node_id': {'78': 950},
+                    'samples_by_foot': {'left': 950, 'right': 0},
+                    'min_contact_count': 4,
+                    'max_contact_count': 4,
+                },
+                {
+                    'contact_solid_node_ids': [78, 138, 999],
+                    'samples_by_solid_node_id': {'78': 950, '138': 950, '999': 950},
+                    'samples_by_foot': {'left': 950, 'right': 950},
+                    'min_contact_count': 9,
+                    'max_contact_count': 9,
+                },
+            )
+            for index, changes in enumerate(cases):
+                with self.subTest(index=index):
+                    p = fixture(directory, f'explicit-contact-fail-{index}',
+                                'balance', .04)
+                    meta = json.loads(p.with_suffix('.json').read_text())
+                    meta['contact_evidence'].update(
+                        foot_mapping='solid_node_id',
+                        foot_node_ids={'left': 78, 'right': 138},
+                        **changes,
+                    )
+                    p.with_suffix('.json').write_text(json.dumps(meta))
+                    result = inspect_run(p)
+                    self.assertEqual('FAIL', result['verdict'])
+                    self.assertIn('contact_or_support_loss', result['reasons'])
+
+    def test_explicit_mapping_rejects_foot_counts_from_other_solids(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = fixture(Path(tmp), 'mismatched-foot-counts', 'balance', .04)
+            meta = json.loads(p.with_suffix('.json').read_text())
+            meta['contact_evidence'].update(
+                foot_mapping='solid_node_id',
+                foot_node_ids={'left': 999, 'right': 1000},
+            )
+            p.with_suffix('.json').write_text(json.dumps(meta))
+
+            self.assertEqual('INVALID', inspect_run(p)['verdict'])
+
     def test_peak_inside_absolute_settle_band_must_still_decay(self):
         with tempfile.TemporaryDirectory() as tmp:
             p = fixture(Path(tmp), 'no-relative-recovery', 'balance', .01)

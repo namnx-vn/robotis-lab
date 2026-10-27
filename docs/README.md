@@ -26,6 +26,7 @@ Tài liệu được nhóm theo **mục đích**, thay vì đặt tất cả và
 - [Balance matrix](experiments/balance-matrix.md) — pitch/roll theo hai chiều và acceptance gate
 - [P2.2 acceptance report](experiments/p2-2-acceptance-report.md) — force API fix PR #8, acceptance gate và bằng chứng còn thiếu
 - [P2.2 debug and P3 readiness](experiments/p2-2-debug-p3-readiness.md) — root cause của xung lực R2025a, kịch bản xác minh và gate trước gait
+- [P3-A neutral support observability](experiments/p3-neutral-observability.md) — contact từng chân, COM/support polygon; chưa phát lệnh gait
 
 ## Operations — CI và quy trình làm việc
 

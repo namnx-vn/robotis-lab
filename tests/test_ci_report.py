@@ -183,6 +183,31 @@ class CiReportTests(unittest.TestCase):
         self.assertIn("78, 138", markdown)
         self.assertIn("does not prove absence of artificial anchoring", markdown)
 
+    def test_explicit_foot_mapping_must_match_contact_solids(self):
+        contact = {
+            "api": "Node.getContactPoints(includeDescendants=True)",
+            "sample_count": 8,
+            "samples_with_contacts": 8,
+            "min_contact_count": 8,
+            "max_contact_count": 8,
+            "contact_solid_node_ids": [78, 138],
+            "contact_observations_by_solid_node_id": {"78": 32, "138": 32},
+            "samples_by_solid_node_id": {"78": 8, "138": 8},
+            "foot_mapping": "solid_node_id",
+            "foot_node_ids": {"left": 78, "right": 999},
+            "samples_by_foot": {"left": 8, "right": 8},
+            "min_world_y_m": -0.00005,
+            "max_world_y_m": -0.00003,
+        }
+        self.write_metadata("smoke-invalid-foot-map", contact_evidence=contact)
+
+        completed = self.run_report("smoke")
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        report = self.read_json()
+        self.assertFalse(report["overall_success"])
+        self.assertIn("foot mapping", report["metadata_summary"]["errors"][0])
+
     def test_baseline_success_includes_gate_and_visual_check_warning(self):
         self.write_baseline_batch()
         self.output.mkdir()

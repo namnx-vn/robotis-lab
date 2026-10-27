@@ -78,18 +78,36 @@ class FakeRobot:
 
 
 class FakeContactRobot(FakeRobot):
+    class FootNode:
+        def __init__(self, node_id, position):
+            self.node_id = node_id
+            self.position = position
+
+        def getId(self): return self.node_id
+        def getPosition(self): return self.position
+
     def getSelf(self): return self
     def getVelocity(self): return [0.0] * 6
     def getCenterOfMass(self): return [0.0, 0.12, 0.0]
     def getStaticBalance(self): return True
     def getFromProtoDef(self, name):
-        return type("FakeNode", (), {"getId": lambda self: 11 if name == "LEFT_FOOT" else 12})()
+        nodes = {
+            "LEFT_FOOT": self.FootNode(11, [-0.03, 0.009, -0.008]),
+            "RIGHT_FOOT": self.FootNode(12, [0.03, 0.009, -0.008]),
+        }
+        return nodes.get(name)
     def enableContactPointsTracking(self, timestep, include_descendants):
         self.contact_tracking = (timestep, include_descendants)
     def getContactPoints(self, include_descendants):
         return [
-            FakeContactPoint((-0.03, 0.0, 0.0), 11),
-            FakeContactPoint((0.03, 0.0, 0.0), 12),
+            FakeContactPoint((-0.05, 0.0, -0.02), 11),
+            FakeContactPoint((-0.05, 0.0, 0.02), 11),
+            FakeContactPoint((-0.01, 0.0, -0.02), 11),
+            FakeContactPoint((-0.01, 0.0, 0.02), 11),
+            FakeContactPoint((0.01, 0.0, -0.02), 12),
+            FakeContactPoint((0.01, 0.0, 0.02), 12),
+            FakeContactPoint((0.05, 0.0, -0.02), 12),
+            FakeContactPoint((0.05, 0.0, 0.02), 12),
         ]
 class ControllerFakeTests(unittest.TestCase):
     def run_case(self, injection, expected, mode="baseline", nonzero_imu=False,
@@ -136,8 +154,27 @@ class ControllerFakeTests(unittest.TestCase):
                     record["contact_evidence"]["contact_solid_node_ids"],
                 )
                 self.assertGreater(record["contact_evidence"]["sample_count"], 0)
+                self.assertEqual(
+                    "solid_node_id",
+                    record["contact_evidence"]["foot_mapping"],
+                )
+                self.assertEqual(
+                    {"left": 11, "right": 12},
+                    record["contact_evidence"]["foot_node_ids"],
+                )
                 self.assertEqual("True", rows[-1]["static_balance"])
                 self.assertEqual(0.12, float(rows[-1]["root_com_y_m"]))
+                self.assertEqual("True", rows[-1]["left_foot_contact"])
+                self.assertEqual("True", rows[-1]["right_foot_contact"])
+                self.assertEqual(4, int(rows[-1]["left_contact_count"]))
+                self.assertEqual(4, int(rows[-1]["right_contact_count"]))
+                self.assertEqual(-0.03, float(rows[-1]["left_foot_x_m"]))
+                self.assertEqual(0.03, float(rows[-1]["right_foot_x_m"]))
+                self.assertGreater(float(rows[-1]["com_support_margin_m"]), 0.0)
+                self.assertEqual(
+                    4,
+                    len(json.loads(rows[-1]["support_polygon_xz_json"])),
+                )
             return record
 
     def test_normal(self): self.run_case("", "STAND")

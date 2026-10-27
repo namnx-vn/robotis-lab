@@ -90,8 +90,26 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
             raise ValueError("invalid_contact_evidence")
         foot_mapping = contact.get("foot_mapping")
         samples_by_foot = contact.get("samples_by_foot")
-        if (foot_mapping != "world_x_sign"
-                or not isinstance(samples_by_foot, dict)):
+        if (not isinstance(samples_by_foot, dict)
+                or set(samples_by_foot) != {"left", "right"}
+                or any(type(count) is not int or not 0 <= count <= contact_samples
+                       for count in samples_by_foot.values())):
+            raise ValueError("missing_explicit_foot_mapping")
+        if foot_mapping == "solid_node_id":
+            foot_node_ids = contact.get("foot_node_ids")
+            if (not isinstance(foot_node_ids, dict)
+                    or set(foot_node_ids) != {"left", "right"}
+                    or any(type(node_id) is not int or node_id <= 0
+                           for node_id in foot_node_ids.values())
+                    or len(set(foot_node_ids.values())) != 2):
+                raise ValueError("invalid_foot_node_mapping")
+            if any(
+                samples_by_foot[name]
+                != samples_by_solid.get(str(foot_node_ids[name]), 0)
+                for name in ("left", "right")
+            ):
+                raise ValueError("foot_mapping_sample_mismatch")
+        elif foot_mapping != "world_x_sign":
             raise ValueError("missing_explicit_foot_mapping")
         continuous_two_foot_contact = (
             samples_with_contacts == contact_samples
