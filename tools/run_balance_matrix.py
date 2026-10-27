@@ -18,6 +18,13 @@ from disturbance_report import compare_pairs
 from run_standing_trials import LOGDIR, trial
 
 CASES = (("pitch", 1), ("pitch", -1), ("roll", 1), ("roll", -1))
+COMMON_EVIDENCE_FIELDS = (
+    "build_commit", "source_commit_sha", "test_merge_sha", "config_sha256",
+    "world_sha256", "software_version", "telemetry_schema_version",
+    "log_period_s", "webots_version", "force_api_mode",
+    "simulation_timestep_s", "force_n", "pulse_s", "onset_s", "offset_m",
+    "calibration_mode", "applied_steps",
+)
 
 
 def validate_experiment(*, pairs: int, force: float, pulse: float,
@@ -28,7 +35,7 @@ def validate_experiment(*, pairs: int, force: float, pulse: float,
     if not all(math.isfinite(v) for v in
                (force, pulse, offset, onset, duration, timeout)):
         raise ValueError("all numeric settings must be finite")
-    if not (0.01 <= force <= 0.35 and 0.016 <= pulse <= 0.20):
+    if not (0.01 <= force <= 0.50 and 0.016 <= pulse <= 0.20):
         raise ValueError("force/pulse outside bounded simulation limits")
     if not 0 <= offset <= 0.06:
         raise ValueError("offset outside bounded simulation limits")
@@ -64,7 +71,31 @@ def overall_gate(cases: list[dict], *, pilot: bool) -> str:
     outcomes = {r["status"] for r in cases}
     if pilot:
         return "READY_FOR_FULL" if outcomes == {"READY_FOR_FULL"} else "REVIEW_REQUIRED"
-    return "PASS" if outcomes == {"IMPROVED"} else "NOT_ESTABLISHED"
+    if outcomes != {"IMPROVED"}:
+        return "NOT_ESTABLISHED"
+    signatures = []
+    run_ids = []
+    for case in cases:
+        report = case.get("report", {})
+        pairs = report.get("pairs", [])
+        if (report.get("verdict") != "IMPROVED" or
+                report.get("comparable_pairs", 0) < 3 or
+                report.get("distinct_run_ids") is not True or len(pairs) < 3):
+            return "NOT_ESTABLISHED"
+        for pair in pairs:
+            if not pair.get("comparable", False):
+                return "NOT_ESTABLISHED"
+            for mode in ("baseline", "balance"):
+                evidence = pair.get(mode, {})
+                run_id = evidence.get("run_id")
+                if (evidence.get("verdict") != "RECOVERED" or
+                        not isinstance(run_id, str) or not run_id or
+                        any(field not in evidence for field in COMMON_EVIDENCE_FIELDS)):
+                    return "NOT_ESTABLISHED"
+                run_ids.append(run_id)
+                signatures.append(tuple(evidence[field] for field in COMMON_EVIDENCE_FIELDS))
+    return ("PASS" if len(set(signatures)) == 1 and len(run_ids) == len(set(run_ids))
+            else "NOT_ESTABLISHED")
 
 
 def run_matrix(*, executable: str, pairs: int, force: float, pulse: float,

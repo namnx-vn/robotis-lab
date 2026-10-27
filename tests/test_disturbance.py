@@ -77,9 +77,11 @@ class DisturbanceTests(unittest.TestCase):
 
 
 def fixture(directory:Path, name:str, mode:str, peak:float, fault:bool=False,
-            inject:bool=True, onset=4.0, initial=.0, direction=1)->Path:
+            inject:bool=True, onset=4.0, initial=.0, direction=1,
+            calibration:bool=False, force=.10)->Path:
     p=directory / f'{name}.csv'
-    cols=['run_id','t_s','mode','state','roll_rad','pitch_rad','root_height_m','root_x_m','root_z_m']
+    cols=['run_id','t_s','mode','state','reason','roll_rad','pitch_rad',
+          'root_height_m','root_x_m','root_z_m']
     cols += ['root_angular_velocity_x_rad_s', 'root_angular_velocity_y_rad_s',
              'root_angular_velocity_z_rad_s', 'root_com_x_m', 'root_com_y_m',
              'root_com_z_m', 'static_balance', 'gyro_x_rad_s', 'gyro_y_rad_s',
@@ -105,7 +107,8 @@ def fixture(directory:Path, name:str, mode:str, peak:float, fault:bool=False,
             actuator_target = correction if mode == 'balance' and dt >= 0 else 0.0
             actuator_measured = actuator_target * 0.8
             w.writerow(dict(run_id=name,t_s=t,mode=mode,
-                    state='FAULT' if bad else 'STAND', roll_rad=0,
+                    state='FAULT' if bad else 'STAND',
+                    reason='excessive_tilt' if bad else '', roll_rad=0,
                     pitch_rad=initial+tilt,
                     root_height_m=.183 if not bad else .09,
                     root_x_m=0.,root_z_m=0.,
@@ -128,7 +131,7 @@ def fixture(directory:Path, name:str, mode:str, peak:float, fault:bool=False,
                        for joint in joint_names
                        for kind in ('target_rad', 'measured_rad',
                                     'torque_feedback_nm')}))
-    world_force=[0.,0.,.10 * direction] if type(direction) is int else [0.,0.,.10]
+    world_force=[0.,0.,force * direction] if type(direction) is int else [0.,0.,force]
     meta={'run_id':name,'mode':mode,'result':'controller_exited',
           'build_commit':'d'*40,
           'source_commit_sha':'a'*40,
@@ -149,12 +152,14 @@ def fixture(directory:Path, name:str, mode:str, peak:float, fault:bool=False,
               'foot_mapping':'world_x_sign',
               'samples_by_foot':{'left':950, 'right':950},
           },
-          'disturbance':{'axis':'pitch','direction':direction,'force_n':.10,'pulse_s':.112,
+          'disturbance':{'axis':'pitch','direction':direction,'force_n':force,'pulse_s':.112,
                          'offset_m':.04,'onset_s':onset,
                          'world_force_n':world_force,
                          'force_api_mode':'r2025a_ctypes_force_with_offset',
+                         'calibration_mode':calibration,
                          'applied_steps':7 if inject else 0,
-                         'first_application_s':onset if inject else None}}
+                         'first_application_s':onset if inject else None,
+                         'last_application_s':onset + .096 if inject else None}}
     p.with_suffix('.json').write_text(json.dumps(meta))
     return p
 
@@ -224,7 +229,66 @@ class ReportTests(unittest.TestCase):
     def test_fault_is_failure(self):
         with tempfile.TemporaryDirectory() as tmp:
             p=fixture(Path(tmp),'fall','balance',.05,fault=True)
-            self.assertEqual('FAIL',inspect_run(p)['verdict'])
+            result = inspect_run(p)
+            self.assertEqual('FAIL', result['verdict'])
+            self.assertEqual('excessive_tilt', result['first_fault_reason'])
+
+    def test_truncated_pulse_is_invalid(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = fixture(Path(tmp), 'truncated', 'balance', .04)
+            meta = json.loads(p.with_suffix('.json').read_text())
+            meta['disturbance']['applied_steps'] = 1
+            meta['disturbance']['last_application_s'] = meta['disturbance']['onset_s']
+            p.with_suffix('.json').write_text(json.dumps(meta))
+            result = inspect_run(p)
+            self.assertEqual('INVALID', result['verdict'])
+            self.assertIn('incomplete_force_pulse', result['reasons'])
+
+    def test_pulse_application_count_must_match_timestamps(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = fixture(Path(tmp), 'bad-count', 'balance', .04)
+            meta = json.loads(p.with_suffix('.json').read_text())
+            meta['disturbance']['applied_steps'] = 1
+            p.with_suffix('.json').write_text(json.dumps(meta))
+            result = inspect_run(p)
+            self.assertEqual('INVALID', result['verdict'])
+            self.assertIn('incomplete_force_pulse', result['reasons'])
+
+    def test_reviewed_half_newton_is_gate_eligible_but_higher_force_is_not(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            accepted = fixture(directory, 'half-newton', 'balance', .04, force=.50)
+            rejected = fixture(directory, 'over-half-newton', 'balance', .04, force=.5001)
+            self.assertEqual('RECOVERED', inspect_run(accepted)['verdict'])
+            self.assertEqual('INVALID', inspect_run(rejected)['verdict'])
+
+    def test_calibration_pairs_cannot_satisfy_scientific_gate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            pairs = [
+                (fixture(directory, f'cal-b{i}', 'baseline', .07, calibration=True),
+                 fixture(directory, f'cal-c{i}', 'balance', .04, calibration=True))
+                for i in range(3)
+            ]
+            result = compare_pairs(pairs)
+            self.assertEqual('CALIBRATION_ONLY', result['verdict'])
+
+    def test_cross_axis_dominant_response_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = fixture(Path(tmp), 'cross-axis', 'balance', .04)
+            with p.open(newline='', encoding='utf-8') as f:
+                rows = list(csv.DictReader(f))
+                fieldnames = list(rows[0])
+            for row in rows:
+                if float(row['t_s']) >= 4.05:
+                    row['roll_rad'] = str(float(row['pitch_rad']) * 1.25)
+            with p.open('w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(rows)
+            result = inspect_run(p)
+            self.assertEqual('FAIL', result['verdict'])
+            self.assertIn('cross_axis_dominant_response', result['reasons'])
 
     def test_missing_event_is_invalid(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -246,6 +310,22 @@ class ReportTests(unittest.TestCase):
             c.with_suffix('.json').write_text(json.dumps(meta))
             result=compare_pairs([(b,c)]*3)
             self.assertEqual('INCONCLUSIVE',result['verdict'])
+
+    def test_different_applied_step_count_is_not_comparable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            pairs = []
+            for index in range(3):
+                baseline = fixture(directory, f'steps-b-{index}', 'baseline', .07)
+                balance = fixture(directory, f'steps-c-{index}', 'balance', .04)
+                meta = json.loads(balance.with_suffix('.json').read_text())
+                meta['disturbance']['applied_steps'] = 6
+                meta['disturbance']['last_application_s'] = 4.08
+                balance.with_suffix('.json').write_text(json.dumps(meta))
+                pairs.append((baseline, balance))
+            result = compare_pairs(pairs)
+            self.assertEqual('INCONCLUSIVE', result['verdict'])
+            self.assertEqual(0, result['comparable_pairs'])
 
     def test_missing_provenance_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:

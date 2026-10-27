@@ -18,7 +18,7 @@ def main() -> int:
     ap.add_argument('--pairs', type=int, default=3, help='3 for pilot, 5 for final decision')
     ap.add_argument('--axis', choices=('pitch', 'roll'), default='pitch')
     ap.add_argument('--direction', type=int, choices=(-1, 1), default=1)
-    ap.add_argument('--force', type=float, default=0.10, help='Newtons; 0.01 .. 0.35 (or up to 4.0 with --calibration)')
+    ap.add_argument('--force', type=float, default=0.10, help='Newtons; 0.01 .. 0.50 (or up to 4.0 with --calibration)')
     ap.add_argument('--pulse', type=float, default=0.112, help='Seconds; 0.016 .. 0.20')
     ap.add_argument('--offset', type=float, default=0.04, help='Meters; 0 .. 0.06')
     ap.add_argument('--onset', type=float, default=4.0, help='Seconds; 2 .. 15')
@@ -30,7 +30,7 @@ def main() -> int:
     args = ap.parse_args()
     if args.pairs < 1 or args.pairs > 10 or args.timeout <= 0 or not (args.onset + args.pulse + 6 <= args.duration <= 60):
         ap.error('pairs 1..10, timeout positive, duration 6s after end of pulse and <=60s')
-    max_force = 4.0 if args.calibration else .35
+    max_force = 4.0 if args.calibration else .50
     if not (0.01 <= args.force <= max_force and .016 <= args.pulse <= .20 and
             0 <= args.offset <= .06 and 2 <= args.onset <= 15):
         ap.error('disturbance outside bounded envelope')

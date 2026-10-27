@@ -45,7 +45,7 @@ class DisturbanceSpec:
         if not all(map(math.isfinite, (force, pulse, onset, offset))):
             raise ValueError("nonfinite disturbance parameter")
         calibration_mode = calibration == "1"
-        max_force = CALIBRATION_MAX_FORCE_N if calibration_mode else 0.35
+        max_force = CALIBRATION_MAX_FORCE_N if calibration_mode else 0.50
         # The calibration envelope is simulation-only and must be explicitly opted in.
         if not (0.01 <= force <= max_force and 0.016 <= pulse <= 0.20 and
                 2.0 <= onset <= 15.0 and 0 <= offset <= 0.06):

@@ -3,7 +3,7 @@
 ## P1 — Initial Webots RL-H25 skeleton (completed for native launch)
 - [x] Webots R2025a parser and 10 DOF geometry seen running on operator macOS.
 - [x] Add IMU/gyro/accelerometer/GPS/camera/distance telemetry and Physics.
-- [x] Visually verify bounding boxes and both foot contacts in an exact-source, operator-authorized tool-assisted Webots session; no visible indication of false static anchoring (PR #15 candidate `24ac0c5`).
+- [x] Visually verify bounding boxes and both foot contacts in an exact-source, operator-authorized tool-assisted Webots session; no visible indication of false static anchoring (PR #15, merged at `cf333ab`).
 - [x] Record native contact telemetry with both descendant foot-solid IDs in every sample across five independent 32 s baseline trials (PR #15 run #43).
 
 ## P2.1 — Static standing baseline (automated gate passed)
@@ -18,7 +18,7 @@
 - [x] Add four-case pitch+/pitch-/roll+/roll- matrix and fail-closed aggregate gate.
 - [x] Add Python 3.10/3.12 CI on pull requests; offline suite.
 - [x] Native one-pair pilot matrix at source `5764732`: all four directions ran without FAULT but were `INCONCLUSIVE` because peak excitation was only `0.00012–0.00016 rad` (<`0.008 rad`).
-- [ ] Repeat the bounded pilot on the accepted source only after contact review and an approved excitation-protocol hypothesis.
+- [x] Repeat the bounded force pilot on accepted source `8c0a552`: `0.50 N` remained safe/contact-continuous in all directions, but only pitch+ was measurably excited; `1.00 N` pitch+ failed and blocks further force escalation.
 - [ ] Check whether all four directions receive measurable force without faults.
 - [ ] Operator: five matched pairs/direction only after pilot review.
 - [ ] Validate PID axis signs/gains from observed telemetry and controlled recovery.

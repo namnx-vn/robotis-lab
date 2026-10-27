@@ -20,7 +20,7 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
         with path.open(newline="", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             columns = set(reader.fieldnames or [])
-            required = {"run_id", "t_s", "state", "roll_rad", "pitch_rad", "root_height_m",
+            required = {"run_id", "t_s", "state", "reason", "roll_rad", "pitch_rad", "root_height_m",
                         "root_x_m", "root_z_m", "mode",
                         "root_angular_velocity_x_rad_s", "root_angular_velocity_y_rad_s",
                         "root_angular_velocity_z_rad_s", "root_com_x_m", "root_com_y_m",
@@ -121,7 +121,7 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
             if row["static_balance"] not in ("True", "False"):
                 raise ValueError("invalid_static_balance_value")
             data.append({k: float(row[k]) for k in numeric_cols} |
-                        {"state": row["state"],
+                         {"state": row["state"], "reason": row["reason"],
                          "static_balance": row["static_balance"] == "True"})
         if not all(math.isfinite(r[k]) for r in data for k in numeric_cols):
             raise ValueError("nonfinite_telemetry")
@@ -133,6 +133,7 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
         force = float(dist["force_n"])
         offset = float(dist["offset_m"])
         applied = int(dist["applied_steps"])
+        simulation_timestep = float(meta["simulation_timestep_s"])
         axis = dist["axis"]
         direction = dist["direction"]
         direction_valid = type(direction) is int and direction in (-1, 1)
@@ -152,15 +153,27 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
             )
         )
         calibration_mode = dist.get("calibration_mode") is True
+        first_application = float(dist["first_application_s"])
         if (axis not in ("pitch", "roll") or
                 not direction_valid or not force_vector_valid or
                 not 0.01 <= force <= 4.0 or
-                (force > 0.35 and not calibration_mode) or
+                (force > 0.50 and not calibration_mode) or
                 not 0.016 <= duration <= 0.20 or not 0 <= offset <= 0.06 or
                 not 2 <= onset <= 15 or applied < 1 or
-                dist["first_application_s"] is None or
-                abs(float(dist["first_application_s"])-onset) > 0.05):
+                not math.isfinite(first_application) or
+                abs(first_application-onset) > 0.05):
             raise ValueError("invalid_or_unapplied_force")
+        try:
+            last_application = float(dist["last_application_s"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("incomplete_force_pulse") from exc
+        covered_pulse = last_application - first_application + simulation_timestep
+        if (not math.isfinite(last_application) or
+                last_application < first_application or
+                abs(covered_pulse - duration) > simulation_timestep + 1e-9 or
+                not math.isclose(applied * simulation_timestep, covered_pulse,
+                                 rel_tol=0.0, abs_tol=1e-9)):
+            raise ValueError("incomplete_force_pulse")
         if times[-1] < onset + duration + 5.0:
             raise ValueError("insufficient_post_pulse_log")
         before = [r for r in data if onset - 1.0 <= r["t_s"] < onset - 0.1]
@@ -187,6 +200,7 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
         fault_rows = [r for r in data if r["state"] != "STAND"]
         fault = bool(fault_rows)
         first_fault_s = fault_rows[0]["t_s"] if fault_rows else None
+        first_fault_reason = fault_rows[0]["reason"] if fault_rows else None
         min_height = min(r["root_height_m"] for r in data)
         x0, z0 = before[0]["root_x_m"], before[0]["root_z_m"]
         drift = max(math.hypot(r["root_x_m"]-x0, r["root_z_m"]-z0) for r in data)
@@ -227,6 +241,7 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
                    max_planar_drift_m=round(drift, 5), min_root_height_m=round(min_height, 5),
                    settled_after_onset_s=settle, fault=fault,
                    first_fault_s=first_fault_s,
+                   first_fault_reason=first_fault_reason,
                    cross_axis_peak_change_rad=round(cross_peak, 6),
                    peak_signed_tilt_change_rad=round(signed_peak, 6),
                    first_measurable_signed_tilt_change_rad=(
@@ -259,6 +274,9 @@ def inspect_run(path: Path, *, intended_mode: str | None = None) -> dict:
         elif not observed:
             out["verdict"] = "INCONCLUSIVE"
             failures.append("no_measurable_excitation")
+        elif cross_peak > peak + 1e-9:
+            out["verdict"] = "FAIL"
+            failures.append("cross_axis_dominant_response")
         elif direction * first_measurable_signed <= 0:
             out["verdict"] = "FAIL"
             failures.append("wrong_signed_response")
@@ -285,7 +303,7 @@ def compare_pairs(pairs: list[tuple[Path, Path]]) -> dict:
                                     "calibration_mode",
                                     "log_period_s", "webots_version", "force_api_mode",
                                     "simulation_timestep_s"))
-                      and abs(base.get("applied_steps", -999)-balance.get("applied_steps", 999)) <= 1)
+                      and base.get("applied_steps") == balance.get("applied_steps"))
         reports.append({"baseline": base, "balance": balance, "comparable": compatible})
     ids = [v[mode].get("run_id") for v in reports for mode in ("baseline", "balance")]
     distinct = len(ids) == len(set(ids)) and all(ids)
@@ -299,6 +317,9 @@ def compare_pairs(pairs: list[tuple[Path, Path]]) -> dict:
     elif any(p[mode]["verdict"] != "RECOVERED" for p in valid
              for mode in ("baseline", "balance")):
         verdict = "FAIL"
+    elif any(p[mode].get("calibration_mode") for p in valid
+             for mode in ("baseline", "balance")):
+        verdict = "CALIBRATION_ONLY"
     else:
         base_mean = sum(p["baseline"]["peak_tilt_change_rad"] for p in valid) / len(valid)
         balance_mean = sum(p["balance"]["peak_tilt_change_rad"] for p in valid) / len(valid)

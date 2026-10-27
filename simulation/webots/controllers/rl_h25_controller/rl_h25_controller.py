@@ -61,7 +61,8 @@ def main() -> None:
         sensor = robot.getDevice(name + "_sensor")
         if motor is None or sensor is None:
             raise RuntimeError("missing motor or joint sensor: " + name)
-        motor.setVelocity(float(cfg["joints"][name]["max_velocity"]))
+        motor.setVelocity(min(float(cfg["joints"][name]["max_velocity"]),
+                              spec.rate_limit))
         motor.setPosition(spec.neutral)  # 0 rad for initial vertical stance
         if disturbance_spec is not None:
             motor.enableTorqueFeedback(step_ms)

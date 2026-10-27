@@ -21,7 +21,7 @@ This sprint measures whether active IMU feedback performs better than the open-l
 
 | Parameter | Initial pilot | Hard software bound |
 |---|---:|---:|
-| Magnitude | 0.10 N | 0.01..0.35 N |
+| Magnitude | 0.10 N | 0.01..0.50 N reviewed force gate |
 | Pulse | 0.112 s | 0.016..0.20 s |
 | Start time | 4.0 s | 2..15 s |
 | Offset | +0.04 m local Y | 0..0.06 m |
@@ -29,6 +29,8 @@ This sprint measures whether active IMU feedback performs better than the open-l
 | Total run | 14 s | Up to 60 s (runner) |
 
 The maximum bounded calibration pilot (`0.35 N`, `0.20 s`, `0.06 m`) remained below the `0.008 rad` excitation threshold in all four directions. It must therefore remain classified `INCONCLUSIVE`; do not infer PID recovery or improvement from it.
+
+An exact-source ladder later reviewed `0.50 N`, `0.20 s`, `0.06 m` as the maximum ordinary force-pilot envelope: all four directions completed without FAULT or contact loss, but only pitch+ was measurably excited. The `1.00 N` pitch+ calibration failed with `excessive_tilt`, fall and contact loss. Values above `0.50 N` remain explicit calibration-only inputs and can never satisfy the P2 scientific gate; do not escalate further without a new reviewed protocol.
 
 Approximate nominal impulse: **0.0112 N·s**, ignoring mechanical joint compliance and exact timestep quantization. Effective torque, support polygon and actual COM response must be measured. Pulses can be shorter/longer by up to one step due to discrete simulation timing; metadata reports real applied-step count.
 
@@ -69,7 +71,8 @@ To visually watch the experiment, use `--graphics`. The command runner starts/te
 - `RECOVERED`: in that *individual synthetic/real run*, tilt change ≥0.008rad, maintained nominal root height and no `FAULT`, and returned within 0.025rad for ≥0.8s after the peak in the first 5s. It is NOT certification of whole-body balance.
 - `FAIL`: excited robot enters `FAULT`, falls, large drift, or fails to settle in time.
 - `INCONCLUSIVE`: perturbation never measured, insufficient pairs or incompatible conditions.
-- `IMPROVED`: ≥3 distinct paired experiments, same force schedule, all balance trials recovered, and ≥10% reduction in mean peak tilt vs baseline. A stronger claim requires roll+pitch, opposite directions and a wider range of forces; even then this remains simulation-only.
+- `IMPROVED`: ≥3 distinct non-calibration paired experiments, same force schedule, all balance trials recovered, and ≥10% reduction in mean peak tilt vs baseline. A stronger claim requires roll+pitch, opposite directions and a wider range of forces; even then this remains simulation-only.
+- `CALIBRATION_ONLY`: a high-force calibration completed, but it is excluded from scientific P2 acceptance even when individual runs recovered.
 - `NO_DEMONSTRATED_IMPROVEMENT`: recovered but did not beat baseline under the explicit rule; tune PID sign/gains only from evidence.
 - `INVALID`: corrupt data, force didn't apply, missing metadata, pre-pulse already tilted/fallen, incomplete run, etc.
 

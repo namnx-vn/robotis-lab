@@ -71,7 +71,7 @@ class SafetySupervisor:
         if emergency_stop:
             self.state, self.reason = "E_STOP", "operator_estop"
             return self.state
-        if self.state in ("FAULT", "E_STOP", "STOP"):
+        if self.state in ("FAULT", "E_STOP"):
             return self.state
         values = (obs.roll_rad, obs.pitch_rad, obs.root_height_m, obs.obstacle_m)
         if not all(math.isfinite(v) for v in values) or obs.obstacle_m < 0:
@@ -80,6 +80,8 @@ class SafetySupervisor:
             self.state, self.reason = "FAULT", "excessive_tilt"
         elif obs.root_height_m < self.min_root_height_m:
             self.state, self.reason = "FAULT", "root_too_low"
+        elif self.state == "STOP":
+            return self.state
         elif obs.obstacle_m < self.obstacle_stop_m:
             self.state, self.reason = "STOP", "obstacle_nearby"
         return self.state

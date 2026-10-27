@@ -61,6 +61,54 @@ def build_native_env(binary: str, base_env: dict[str, str]) -> dict[str, str]:
     return env
 
 
+def require_clean_source_commit() -> str:
+    """Return HEAD only when native evidence can represent the checked-out source."""
+    try:
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True,
+            text=True, timeout=5, check=True,
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain"], cwd=ROOT, capture_output=True,
+            text=True, timeout=5, check=True,
+        ).stdout.strip()
+    except (subprocess.SubprocessError, OSError) as exc:
+        raise RuntimeError("cannot verify source provenance for native trial") from exc
+    if len(head) != 40 or any(char not in "0123456789abcdefABCDEF" for char in head):
+        raise RuntimeError("cannot verify source provenance for native trial")
+    if dirty:
+        raise RuntimeError(
+            "dirty working tree: commit or stash changes before gate-eligible native trials"
+        )
+    return head
+
+
+def verified_provenance(env: dict[str, str], head: str, *,
+                        github_actions: bool) -> dict[str, str]:
+    """Build provenance that cannot be overridden by stale local exports."""
+    fields = (
+        "RL_H25_BUILD_COMMIT",
+        "RL_H25_SOURCE_COMMIT_SHA",
+        "RL_H25_TEST_MERGE_SHA",
+    )
+    if not github_actions:
+        return env | {field: head for field in fields}
+    build = env.get("RL_H25_BUILD_COMMIT")
+    source = env.get("RL_H25_SOURCE_COMMIT_SHA")
+    test_merge = env.get("RL_H25_TEST_MERGE_SHA")
+    valid_source = (
+        isinstance(source, str) and len(source) == 40 and
+        all(char in "0123456789abcdefABCDEF" for char in source)
+    )
+    if build != head or test_merge != head or not valid_source:
+        raise RuntimeError("CI provenance does not match the checked-out test commit")
+    return env | {
+        "RL_H25_BUILD_COMMIT": head,
+        "RL_H25_SOURCE_COMMIT_SHA": source,
+        "RL_H25_TEST_MERGE_SHA": head,
+    }
+
+
 def trial(binary: str, *, mode: str, sim_duration_s: float, timeout_s: float,
           number: int, graphics: bool = False, extra_env: dict | None = None) -> Path:
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
@@ -81,14 +129,10 @@ def trial(binary: str, *, mode: str, sim_duration_s: float, timeout_s: float,
                RL_H25_DURATION_S=str(sim_duration_s), RL_H25_LOG_DIR=str(LOGDIR))
     # Keep provenance of the exact checked-out source and PR test merge.
     # CI can provide the original PR head independently of GITHUB_SHA.
-    try:
-        head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT,
-                              capture_output=True, text=True, timeout=5, check=True).stdout.strip()
-    except (subprocess.SubprocessError, OSError):
-        head = "unverified"
-    env.setdefault("RL_H25_BUILD_COMMIT", head)
-    env.setdefault("RL_H25_SOURCE_COMMIT_SHA", head)
-    env.setdefault("RL_H25_TEST_MERGE_SHA", os.getenv("GITHUB_SHA", head))
+    head = require_clean_source_commit()
+    env = verified_provenance(
+        env, head, github_actions=env.get("GITHUB_ACTIONS") == "true"
+    )
     env.pop('RL_H25_FORCE_FAULT', None)
     for key in list(env):
         if key.startswith('RL_H25_DIST_') or key == 'RL_H25_DISTURBANCE':

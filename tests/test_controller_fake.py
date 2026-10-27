@@ -53,7 +53,10 @@ class FakeContactPoint:
 
 
 class FakeRobot:
+    last_instance = None
+
     def __init__(self):
+        type(self).last_instance = self
         cfg = json.loads((ROOT / "configs" / "robot.json").read_text())
         self.devices = {}
         for name in cfg["joints"]:
@@ -152,6 +155,14 @@ class ControllerFakeTests(unittest.TestCase):
     def test_estop(self): self.run_case("estop", "E_STOP")
     def test_contact_evidence(self):
         self.run_case("", "STAND", contact_evidence=True)
+
+    def test_motor_velocity_never_exceeds_command_rate_limit(self):
+        self.run_case("", "STAND")
+        config = json.loads((ROOT / "configs" / "robot.json").read_text())
+        robot = FakeRobot.last_instance
+        self.assertIsNotNone(robot)
+        for name, joint in config["joints"].items():
+            self.assertLessEqual(robot.devices[name].velocity, joint["rate_limit"])
 
 
 if __name__ == "__main__":

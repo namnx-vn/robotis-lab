@@ -3,10 +3,17 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from subprocess import CompletedProcess
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
-from run_standing_trials import build_native_env, read_webots_version
+from run_standing_trials import (
+    build_native_env,
+    read_webots_version,
+    require_clean_source_commit,
+    verified_provenance,
+)
 from smoke_webots import build_controller_env
 
 
@@ -75,6 +82,57 @@ class WebotsVersionTests(unittest.TestCase):
 
 
 class WorkflowProvenanceTests(unittest.TestCase):
+    def test_local_provenance_overwrites_stale_environment(self):
+        head = "a" * 40
+        result = verified_provenance(
+            {
+                "RL_H25_BUILD_COMMIT": "b" * 40,
+                "RL_H25_SOURCE_COMMIT_SHA": "c" * 40,
+                "RL_H25_TEST_MERGE_SHA": "d" * 40,
+            },
+            head,
+            github_actions=False,
+        )
+        self.assertEqual(head, result["RL_H25_BUILD_COMMIT"])
+        self.assertEqual(head, result["RL_H25_SOURCE_COMMIT_SHA"])
+        self.assertEqual(head, result["RL_H25_TEST_MERGE_SHA"])
+
+    def test_ci_provenance_requires_tested_head_but_allows_pr_source(self):
+        head = "a" * 40
+        source = "b" * 40
+        env = {
+            "RL_H25_BUILD_COMMIT": head,
+            "RL_H25_SOURCE_COMMIT_SHA": source,
+            "RL_H25_TEST_MERGE_SHA": head,
+        }
+        self.assertEqual(
+            source,
+            verified_provenance(env, head, github_actions=True)["RL_H25_SOURCE_COMMIT_SHA"],
+        )
+        with self.assertRaisesRegex(RuntimeError, "CI provenance"):
+            verified_provenance(
+                env | {"RL_H25_TEST_MERGE_SHA": "c" * 40},
+                head,
+                github_actions=True,
+            )
+
+    def test_gate_run_refuses_dirty_worktree(self):
+        results = [
+            CompletedProcess([], 0, stdout="a" * 40 + "\n", stderr=""),
+            CompletedProcess([], 0, stdout=" M tools/example.py\n", stderr=""),
+        ]
+        with patch("run_standing_trials.subprocess.run", side_effect=results):
+            with self.assertRaisesRegex(RuntimeError, "dirty working tree"):
+                require_clean_source_commit()
+
+    def test_gate_run_uses_clean_head(self):
+        results = [
+            CompletedProcess([], 0, stdout="a" * 40 + "\n", stderr=""),
+            CompletedProcess([], 0, stdout="", stderr=""),
+        ]
+        with patch("run_standing_trials.subprocess.run", side_effect=results):
+            self.assertEqual("a" * 40, require_clean_source_commit())
+
     def test_simulation_workflow_exports_exact_source_and_test_sha(self):
         workflow = (ROOT / ".github/workflows/simulation.yml").read_text(encoding="utf-8")
         self.assertIn("RL_H25_BUILD_COMMIT: ${{ github.sha }}", workflow)

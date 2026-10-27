@@ -75,6 +75,23 @@ class SafetyTests(unittest.TestCase):
         self.assertEqual("STOP", self.sup.observe(self.safe))
         self.assertEqual("obstacle_nearby", self.sup.reason)
 
+    def test_stop_escalates_to_fault_for_later_hazards(self):
+        hazards = (
+            (Observation(0.46, 0, 0.18, 0.8), "excessive_tilt"),
+            (Observation(0, 0, 0.08, 0.8), "root_too_low"),
+            (Observation(math.nan, 0, 0.18, 0.8), "invalid_sensor_value"),
+        )
+        for observation, reason in hazards:
+            with self.subTest(reason=reason):
+                supervisor = SafetySupervisor(tilt_fault_rad=0.45,
+                                              min_root_height_m=0.1,
+                                              obstacle_stop_m=0.18)
+                self.assertEqual(
+                    "STOP", supervisor.observe(Observation(0, 0, 0.18, 0.10))
+                )
+                self.assertEqual("FAULT", supervisor.observe(observation))
+                self.assertEqual(reason, supervisor.reason)
+
     def test_imu_nonfinite_fault(self):
         self.assertEqual("FAULT", self.sup.observe(Observation(math.nan, 0, 0.18, 0.9)))
         self.assertFalse(self.sup.reset_with_operator_approval(False, self.safe))
