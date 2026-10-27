@@ -68,17 +68,30 @@ def require_clean_source_commit() -> str:
             ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True,
             text=True, timeout=5, check=True,
         ).stdout.strip()
-        dirty = subprocess.run(
-            ["git", "status", "--porcelain"], cwd=ROOT, capture_output=True,
+        tracked_changes = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=no"], cwd=ROOT,
+            capture_output=True,
             text=True, timeout=5, check=True,
         ).stdout.strip()
     except (subprocess.SubprocessError, OSError) as exc:
         raise RuntimeError("cannot verify source provenance for native trial") from exc
     if len(head) != 40 or any(char not in "0123456789abcdefABCDEF" for char in head):
         raise RuntimeError("cannot verify source provenance for native trial")
-    if dirty:
+    if tracked_changes:
         raise RuntimeError(
             "dirty working tree: commit or stash changes before gate-eligible native trials"
+        )
+    try:
+        untracked_runtime = subprocess.run(
+            ["git", "ls-files", "--others", "--exclude-standard", "--",
+             "simulation", "tools", "configs"],
+            cwd=ROOT, capture_output=True, text=True, timeout=5, check=True,
+        ).stdout.strip()
+    except (subprocess.SubprocessError, OSError) as exc:
+        raise RuntimeError("cannot verify source provenance for native trial") from exc
+    if untracked_runtime:
+        raise RuntimeError(
+            "untracked runtime source: commit or remove it before gate-eligible native trials"
         )
     return head
 

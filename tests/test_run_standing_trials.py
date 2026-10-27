@@ -129,9 +129,20 @@ class WorkflowProvenanceTests(unittest.TestCase):
         results = [
             CompletedProcess([], 0, stdout="a" * 40 + "\n", stderr=""),
             CompletedProcess([], 0, stdout="", stderr=""),
+            CompletedProcess([], 0, stdout="", stderr=""),
         ]
         with patch("run_standing_trials.subprocess.run", side_effect=results):
             self.assertEqual("a" * 40, require_clean_source_commit())
+
+    def test_gate_run_refuses_untracked_runtime_source(self):
+        results = [
+            CompletedProcess([], 0, stdout="a" * 40 + "\n", stderr=""),
+            CompletedProcess([], 0, stdout="", stderr=""),
+            CompletedProcess([], 0, stdout="tools/untracked.py\n", stderr=""),
+        ]
+        with patch("run_standing_trials.subprocess.run", side_effect=results):
+            with self.assertRaisesRegex(RuntimeError, "untracked runtime source"):
+                require_clean_source_commit()
 
     def test_simulation_workflow_exports_exact_source_and_test_sha(self):
         workflow = (ROOT / ".github/workflows/simulation.yml").read_text(encoding="utf-8")
