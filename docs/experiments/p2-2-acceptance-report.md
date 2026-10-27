@@ -1,9 +1,9 @@
 # P2.2 Acceptance Report — Controlled Disturbance & Active Balance Recovery
 
 **Status: INCONCLUSIVE — P2.2 not accepted; P3 remains blocked.**
-**Date:** 2026-10-25
+**Date:** 2026-10-27
 **Scope:** Webots-only compatibility, telemetry, fail-closed safety ordering and regression tests. No hardware, PID gain/sign, robot mechanics, gait or safety-threshold changes.
-**Accepted source audited:** `master` at `8c0a552`; PR #15 merged at `cf333ab`.
+**Accepted runtime source audited:** clean branch commit `f31a9a5`; latest merged baseline source `8c0a552`.
 
 ## 2026-10-25 gate-hardening and native pilot update
 
@@ -12,6 +12,8 @@ The disturbance schema is now versioned (`telemetry_schema_version: 2`) and requ
 An exact-source native Webots R2025a38 pilot at force `0.35 N`, pulse `0.20 s`, offset `0.06 m` completed all four pitch/roll directions without FAULT or contact loss. Peaks were only `0.00056–0.00081 rad` (pitch) and `0.00059–0.00064 rad` (roll), so every pair was `INCONCLUSIVE no_measurable_excitation` against the mandatory `0.008 rad` threshold. This is a calibration result, not active-balance evidence; P2.2 remains unaccepted and P3 remains blocked.
 
 The next exact-source ladder at `8c0a552` established `0.50 N`, `0.20 s`, `0.06 m` as a reviewed pilot ceiling, not as an acceptance result. Pitch+ produced measurable recovered peaks of `0.02068 rad` baseline and `0.02043 rad` balance, only about `1.2%` reduction. Pitch- remained `0.00080/0.00114 rad`; roll+ and roll- each remained `0.00117/0.00110 rad`. All four one-pair cases completed in `STAND` with continuous two-foot contact and no FAULT, but three directions were unexcited and pitch+ was below the required `10%` improvement. A separate `1.00 N` pitch+ calibration pair caused `excessive_tilt` at `4.208 s`, root height below `0.013 m`, and contact loss. It is retained as `FAIL`; force escalation beyond `0.50 N` is not approved by this report.
+
+On 2026-10-27, the same one-pair matrix was repeated on clean hardening commit `f31a9a5`. Every baseline/balance trial received exactly 13 force applications and retained continuous two-foot contact without FAULT. The measured peaks reproduced the preceding result: pitch+ `0.02068/0.02043 rad`, pitch- `0.00080/0.00114 rad`, and roll± `0.00117/0.00110 rad`. The aggregate gate was `REVIEW_REQUIRED`: pitch+ was `READY_FOR_FULL`, while pitch- and roll± remained `INCONCLUSIVE`. A separate 31.92 s native baseline on the same commit ended in `STAND` with maximum pitch `0.0002 rad`, maximum roll `0 rad`, minimum root height `0.183 m`, and zero planar drift. This validates the hardening smoke/static behavior, not P2.2 recovery.
 
 ## Goal and baseline evidence
 
@@ -101,7 +103,7 @@ If a direction is `INCONCLUSIVE`, `FAIL` or has unexplained drift/fault, stop an
 |---|---|
 | Native C force-with-offset physics on a free body and world/local-frame signs | PASS, local Webots R2025a, 8/8 cases |
 | Five fresh undisturbed 32 s standing trials on accepted source | PASS, 5/5 on `8c0a552`; automated telemetry only |
-| Four directions: pitch ±, roll ± | One paired `0.50 N` pilot each on `8c0a552`; pitch+ measurable but insufficient improvement, other directions unexcited |
+| Four directions: pitch ±, roll ± | One paired `0.50 N` pilot each on `f31a9a5`; pitch+ measurable but insufficient improvement, other directions unexcited |
 | >=3 independently valid paired runs per direction (5 preferred) | PENDING |
 | Every trial peak response >=0.008 rad, initial target-axis tilt <0.08 rad | PENDING |
 | No FAULT, fall, root-height loss, unacceptable drift | No faults in pilots; full-matrix gate pending |
