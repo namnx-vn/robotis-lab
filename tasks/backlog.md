@@ -19,6 +19,8 @@
 - [x] Add Python 3.10/3.12 CI on pull requests; offline suite.
 - [x] Native one-pair pilot matrix at source `5764732`: all four directions ran without FAULT but were `INCONCLUSIVE` because peak excitation was only `0.00012–0.00016 rad` (<`0.008 rad`).
 - [x] Repeat the bounded force pilot on accepted source `8c0a552`: `0.50 N` remained safe/contact-continuous in all directions, but only pitch+ was measurably excited; `1.00 N` pitch+ failed and blocks further force escalation.
+- [x] Add offline-tested R2025a torque C-ABI adapter and extend the isolated free-body probe; do not connect it to RL-H25 yet.
+- [ ] Verify every force and torque free-body probe case in native Webots on the exact source SHA before designing a robot torque pilot.
 - [ ] Check whether all four directions receive measurable force without faults.
 - [ ] Operator: five matched pairs/direction only after pilot review.
 - [ ] Validate PID axis signs/gains from observed telemetry and controlled recovery.

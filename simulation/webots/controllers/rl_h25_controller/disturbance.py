@@ -109,6 +109,41 @@ class ForceWithOffsetAPI:
         self._apply(self._ref, vector, point, bool(relative))
 
 
+class TorqueAPI:
+    """R2025a compatibility adapter for the correct three-argument C ABI.
+
+    Webots R2025a's Python ``Node.addTorque`` wrapper incorrectly dispatches
+    ``wb_supervisor_node_add_force`` with a four-double array. This adapter has
+    no fallback to that wrapper; native behavior must pass the free-body probe
+    before it is considered for an RL-H25 disturbance experiment.
+    """
+
+    mode = "r2025a_ctypes_torque"
+
+    def __init__(self, solid: object, *, library: object | None = None) -> None:
+        ref = getattr(solid, "_ref", None)
+        if not isinstance(ref, ctypes.c_void_p) or not ref.value:
+            raise RuntimeError("Supervisor Node._ref must be a non-null c_void_p")
+        if library is None:
+            from controller.wb import wb
+            library = wb
+        try:
+            method = library.wb_supervisor_node_add_torque
+        except AttributeError as exc:
+            raise RuntimeError("Webots C torque symbol unavailable") from exc
+        method.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_double),
+                           ctypes.c_bool]
+        method.restype = None
+        self._ref, self._apply = ref, method
+
+    def add(self, torque: list[float], relative: bool) -> None:
+        if (len(torque) != 3 or
+                not all(math.isfinite(float(value)) for value in torque)):
+            raise ValueError("torque must be a finite 3-vector")
+        vector = (ctypes.c_double * 3)(*torque)
+        self._apply(self._ref, vector, bool(relative))
+
+
 class DisturbanceInjector:
     def __init__(self, spec: DisturbanceSpec, solid: object, *,
                  force_api: ForceWithOffsetAPI | None = None) -> None:

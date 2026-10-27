@@ -34,6 +34,12 @@ An exact-source ladder later reviewed `0.50 N`, `0.20 s`, `0.06 m` as the maximu
 
 Approximate nominal impulse: **0.0112 N·s**, ignoring mechanical joint compliance and exact timestep quantization. Effective torque, support polygon and actual COM response must be measured. Pulses can be shorter/longer by up to one step due to discrete simulation timing; metadata reports real applied-step count.
 
+## Direct-torque compatibility probe — not an RL-H25 experiment yet
+
+Webots R2025a's Python `Node.addTorque()` wrapper calls the wrong C function. The source now includes a narrow `ctypes` adapter for the declared three-argument `wb_supervisor_node_add_torque` ABI and extends the independent free-body probe with pitch ±, roll ±, zero-torque and yaw-rotated world-frame cases. The existing CI disturbance job must reject the probe unless every force and torque case passes. The parser independently rechecks raw angular velocity, signs, cross-axis response, probe magnitude, pulse length, exact Webots version and build/source/test SHA instead of trusting the controller's `pass` flag.
+
+The probe uses `0.01 N·m` for eight 16 ms steps on the isolated 0.5 kg cube. That value is chosen only to make the free-body angular response measurable; it is **not** an approved RL-H25 torque, a hardware limit or evidence that direct root torque represents a collision. No direct-torque call is connected to the RL-H25 controller or matrix runner in this change. A separate reviewed robot pilot and metadata schema are required after native probe evidence passes.
+
 ## Mac commands — safe order
 
 From the extracted `robotis-lab-v021` directory, close Webots GUI instances before batch runs:
@@ -80,4 +86,4 @@ To visually watch the experiment, use `--graphics`. The command runner starts/te
 
 Weak active PID can inject energy and destabilize the biped. On `FAULT`, the controller freezes targets; the robot may continue falling under gravity. Operator should not use this simulator code to command real servos. The experiment relies on idealized motors/mass/friction and no external sensor noise.
 
-**Acceptance to progress:** 5 paired pitch runs, evidence force applied, no initial pose faults, active PID demonstrated quantitative benefit or documented failure; repeat for roll and opposite directions before attempting weight shift. Even if evidence is positive, inspect contact geometry and root rigid-body freedom in GUI. If negative, diagnose first-fault telemetry and correct signs/gains, rerun identical experiment.
+**Acceptance to progress:** native free-body force/torque probe passes first; then a separately reviewed RL-H25 disturbance protocol must produce comparable evidence in all four directions. The P2.2 gate still requires at least three matched pairs per direction, no FAULT/contact loss, recovery, and at least 10% lower mean peak tilt with balance before weight shift. Even if evidence is positive, inspect contact geometry and root rigid-body freedom in GUI.

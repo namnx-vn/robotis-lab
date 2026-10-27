@@ -1,4 +1,4 @@
-"""Native Webots R2025a force ABI regression on an unanchored free solid.
+"""Native Webots R2025a force/torque ABI regression on a free solid.
 
 Independent of RL-H25, PID, foot contact and balancing. Fails closed if actual
 angular velocity direction, offset, frame, or gravity disagrees with expectation.
@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "rl_h25_controller"))
-from disturbance import ForceWithOffsetAPI
+from disturbance import ForceWithOffsetAPI, TorqueAPI
 
 
 def main() -> None:
@@ -24,10 +24,11 @@ def main() -> None:
     if node is None or node.getField("physics").getSFNode() is None:
         raise RuntimeError("FREE_BLOCK has no Physics: probe invalid")
     force_api = ForceWithOffsetAPI(node)
+    torque_api = TorqueAPI(node)
     trans = node.getField("translation")
     rotation = node.getField("rotation")
     initial_position = [0.0, 1.0, 0.0]
-    force_n, pulse_steps, offset_m = 0.8, 8, 0.04
+    force_n, torque_nm, pulse_steps, offset_m = 0.8, 0.01, 8, 0.04
 
     def reset(axis_angle: list[float]) -> None:
         trans.setSFVec3f(initial_position)
@@ -50,6 +51,14 @@ def main() -> None:
             force_api.add(vector, [0.0, offset, 0.0], False)
             if robot.step(step_ms) == -1:
                 raise RuntimeError("Webots ended during force probe")
+        return list(node.getVelocity()[3:6])
+
+    def torque_trial(vector: list[float], pose: list[float]) -> list[float]:
+        reset(pose)
+        for _ in range(pulse_steps):
+            torque_api.add(vector, False)
+            if robot.step(step_ms) == -1:
+                raise RuntimeError("Webots ended during torque probe")
         return list(node.getVelocity()[3:6])
 
     identity = [0, 1, 0, 0]
@@ -81,10 +90,43 @@ def main() -> None:
             passed = finite and primary > 0.10 and cross < max(0.08, 0.3 * primary)
         ok = ok and passed
         results.append({"case": name, "omega_xyz": omega, "pass": passed})
+
+    torque_cases = [
+        ("torque_pitch_plus", [torque_nm, 0, 0], identity, 0, +1),
+        ("torque_pitch_minus", [-torque_nm, 0, 0], identity, 0, -1),
+        # Preserve the existing disturbance convention: roll+ force at +Y
+        # creates a -Z moment, while roll- creates a +Z moment.
+        ("torque_roll_plus", [0, 0, -torque_nm], identity, 2, -1),
+        ("torque_roll_minus", [0, 0, torque_nm], identity, 2, +1),
+        ("torque_zero", [0, 0, 0], identity, None, 0),
+        ("torque_yaw_rotated_world", [torque_nm, 0, 0],
+         [0, 1, 0, math.pi / 2], 0, +1),
+    ]
+    for name, vector, pose, axis, sign in torque_cases:
+        omega = torque_trial(vector, pose)
+        finite = all(math.isfinite(value) for value in omega)
+        if axis is None:
+            passed = finite and max(abs(value) for value in omega) < 0.08
+        else:
+            primary = sign * omega[axis]
+            cross = max(abs(omega[index]) for index in range(3) if index != axis)
+            passed = finite and primary > 0.10 and cross < max(0.08, 0.3 * primary)
+        ok = ok and passed
+        results.append({"case": name, "omega_xyz": omega, "pass": passed})
+
     summary = {"pass": bool(ok), "force_api_mode": force_api.mode,
+               "torque_api_mode": torque_api.mode,
+               "build_commit": os.environ.get("RL_H25_BUILD_COMMIT", "unverified"),
+               "source_commit_sha": os.environ.get(
+                   "RL_H25_SOURCE_COMMIT_SHA", "unverified"),
+               "test_merge_sha": os.environ.get(
+                   "RL_H25_TEST_MERGE_SHA", "unverified"),
+               "webots_version": os.environ.get(
+                   "RL_H25_WEBOTS_VERSION", "unverified"),
                "gravity_observed": gravity_observed,
                "gravity_displacement_m": y_after - y_before,
-               "pulse_steps": pulse_steps, "results": results}
+               "pulse_steps": pulse_steps, "probe_torque_nm": torque_nm,
+               "results": results}
 
     # Webots simulationQuit may terminate stdout forwarding before the log is
     # flushed. Save the exact result atomically to the runner-selected file.
@@ -95,7 +137,7 @@ def main() -> None:
     # Exit native Webots cleanly instead of leaving a headless batch process running.
     robot.simulationQuit(0 if ok else 1)
     if not ok:
-        raise RuntimeError("Native force-with-offset probe failed: do not tune PID")
+        raise RuntimeError("Native disturbance API probe failed: do not tune PID")
 
 
 if __name__ == "__main__":

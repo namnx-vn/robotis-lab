@@ -1,5 +1,5 @@
 #VRML_SIM R2025a utf8
-# Independent physics probe. DO NOT change RLH25.proto or its mechanics to pass.
+# Independent force/torque physics probe. DO NOT change RLH25.proto to pass.
 WorldInfo {
   basicTimeStep 16
   gravity 9.81

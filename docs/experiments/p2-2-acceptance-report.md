@@ -5,6 +5,12 @@
 **Scope:** Webots-only compatibility, telemetry, fail-closed safety ordering and regression tests. No hardware, PID gain/sign, robot mechanics, gait or safety-threshold changes.
 **Accepted runtime source audited:** clean branch commit `f31a9a5`; latest merged baseline source `8c0a552`.
 
+## 2026-10-27 torque ABI probe preparation
+
+The next bounded diagnostic adds an offline-tested `ctypes` adapter for Webots R2025a's declared `wb_supervisor_node_add_torque(WbNodeRef, double[3], bool)` ABI. The bundled Python `Node.addTorque()` implementation incorrectly dispatches to `wb_supervisor_node_add_force`, so it is not used. The independent free-body probe now requires pitch ±, roll ±, zero-input and yaw-rotated world-frame torque cases in addition to all existing force cases.
+
+Native torque-probe execution is **NOT RUN** for this source change. Direct torque is not connected to RL-H25, no robot torque envelope is approved, no old force result is relabelled, and P2.2 remains `INCONCLUSIVE`. A native free-body PASS is only permission to design a separate bounded robot pilot; it is not balance evidence and does not open P3.
+
 ## 2026-10-25 gate-hardening and native pilot update
 
 The disturbance schema is now versioned (`telemetry_schema_version: 2`) and requires build/source/test provenance, finite root/IMU/COM telemetry, all ten target/measured/torque actuator channels, explicit left/right foot classification (`world_x_sign` relative to root X), and nonzero balance-mode correction plus target/measured actuator response. Recovery requires decay to both 0.025 rad and 50% of the observed peak for 0.8 s. Static-balance telemetry is recorded as supplementary evidence; continuous two-foot contact remains the hard support gate.
