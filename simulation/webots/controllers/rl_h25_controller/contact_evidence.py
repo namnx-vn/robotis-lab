@@ -97,7 +97,7 @@ class ContactEvidence:
     ) -> dict[str, Any]:
         com = None
         foot_positions = None
-        if self.foot_node_ids is not None:
+        if self.foot_mapping is not None:
             com = _vector3(com_world_m, "center of mass")
             if not isinstance(foot_positions_world_m, dict) or set(
                 foot_positions_world_m
@@ -108,18 +108,11 @@ class ContactEvidence:
                 for name in ("left", "right")
             }
         contacts = []
-        counts_by_foot = {"left": 0, "right": 0}
-        foot_by_node = (
-            {node_id: name for name, node_id in self.foot_node_ids.items()}
-            if self.foot_node_ids is not None else {}
-        )
         for contact in contact_points:
             point = _vector3(contact.getPoint(), "Webots contact point")
             node_id = contact.getNodeId()
             if type(node_id) is not int:
                 raise ValueError("invalid Webots contact point")
-            if node_id in foot_by_node:
-                counts_by_foot[foot_by_node[node_id]] += 1
             contacts.append(
                 {
                     "point_world_m": [round(value, 9) for value in point],
@@ -130,16 +123,27 @@ class ContactEvidence:
             self.max_world_y_m = max(self.max_world_y_m, point[1])
             self.solid_counts[node_id] = self.solid_counts.get(node_id, 0) + 1
 
+        counts_by_foot = {"left": 0, "right": 0}
+        foot_by_node = (
+            {node_id: name for name, node_id in self.foot_node_ids.items()}
+            if self.foot_node_ids is not None else {}
+        )
+        for contact in contacts:
+            name = foot_by_node.get(contact["solid_node_id"])
+            if name is not None:
+                counts_by_foot[name] += 1
+            elif self.foot_mapping == "world_x_sign":
+                side = "left" if contact["point_world_m"][0] < root_x_m else "right"
+                counts_by_foot[side] += 1
+
         count = len(contacts)
         for node_id in {contact["solid_node_id"] for contact in contacts}:
             self.solid_sample_counts[node_id] = (
                 self.solid_sample_counts.get(node_id, 0) + 1
             )
         if self.foot_mapping == "world_x_sign":
-            if any(contact["point_world_m"][0] < root_x_m for contact in contacts):
-                self.foot_sample_counts["left"] += 1
-            if any(contact["point_world_m"][0] >= root_x_m for contact in contacts):
-                self.foot_sample_counts["right"] += 1
+            for name, foot_count in counts_by_foot.items():
+                self.foot_sample_counts[name] += foot_count > 0
         elif self.foot_mapping == "solid_node_id":
             for name, foot_count in counts_by_foot.items():
                 self.foot_sample_counts[name] += foot_count > 0

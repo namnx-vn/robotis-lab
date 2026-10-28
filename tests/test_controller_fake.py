@@ -83,7 +83,8 @@ class FakeContactRobot(FakeRobot):
             self.node_id = node_id
             self.position = position
 
-        def getId(self): return self.node_id
+        def getId(self):
+            raise AssertionError("internal PROTO node IDs are unavailable")
         def getPosition(self): return self.position
 
     def getSelf(self): return self
@@ -155,13 +156,10 @@ class ControllerFakeTests(unittest.TestCase):
                 )
                 self.assertGreater(record["contact_evidence"]["sample_count"], 0)
                 self.assertEqual(
-                    "solid_node_id",
+                    "world_x_sign",
                     record["contact_evidence"]["foot_mapping"],
                 )
-                self.assertEqual(
-                    {"left": 11, "right": 12},
-                    record["contact_evidence"]["foot_node_ids"],
-                )
+                self.assertIsNone(record["contact_evidence"]["foot_node_ids"])
                 self.assertEqual("True", rows[-1]["static_balance"])
                 self.assertEqual(0.12, float(rows[-1]["root_com_y_m"]))
                 self.assertEqual("True", rows[-1]["left_foot_contact"])
