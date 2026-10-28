@@ -120,6 +120,25 @@ class ContactEvidenceTests(unittest.TestCase):
         self.assertEqual(self.FOOT_IDS, summary["foot_node_ids"])
         self.assertEqual(sample, summary["last_sample"])
 
+    def test_world_x_mapping_uses_root_position_for_per_foot_counts(self):
+        evidence = ContactEvidence("world_x_sign")
+
+        sample = evidence.observe(
+            [
+                FakeContactPoint((0.08, 0.0, 0.0), 11),
+                FakeContactPoint((0.12, 0.0, 0.0), 12),
+            ],
+            root_x_m=0.10,
+            com_world_m=(0.10, 0.12, 0.0),
+            foot_positions_world_m={
+                "left": (0.08, 0.009, 0.0),
+                "right": (0.12, 0.009, 0.0),
+            },
+        )
+
+        self.assertEqual({"left": True, "right": True}, sample["contacts_by_foot"])
+        self.assertEqual({"left": 1, "right": 1}, sample["contact_counts_by_foot"])
+
     def test_support_margin_is_negative_when_com_projection_is_outside(self):
         evidence = ContactEvidence(self.FOOT_IDS)
 

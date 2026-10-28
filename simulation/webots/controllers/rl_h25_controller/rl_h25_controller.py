@@ -57,9 +57,7 @@ def main() -> None:
         }
         if any(node is None for node in foot_nodes.values()):
             raise RuntimeError("missing LEFT_FOOT or RIGHT_FOOT PROTO node")
-        contact_evidence = ContactEvidence(
-            {name: node.getId() for name, node in foot_nodes.items()}
-        )
+        contact_evidence = ContactEvidence("world_x_sign")
     else:
         contact_evidence = None
     if contact_evidence is not None:
@@ -238,6 +236,7 @@ def main() -> None:
                     if contact_evidence is not None:
                         support_sample = contact_evidence.observe(
                             robot_node.getContactPoints(True),
+                            root_x_m=x,
                             com_world_m=root_com,
                             foot_positions_world_m={
                                 name: node.getPosition() for name, node in foot_nodes.items()
