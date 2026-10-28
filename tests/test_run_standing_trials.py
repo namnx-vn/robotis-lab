@@ -1,4 +1,5 @@
 """Webots version provenance discovery tests (offline only)."""
+from contextlib import contextmanager
 import sys
 import tempfile
 import unittest
@@ -15,6 +16,15 @@ from run_standing_trials import (
     verified_provenance,
 )
 from smoke_webots import build_controller_env
+
+
+@contextmanager
+def git_checkout():
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp)
+        (root / ".git").mkdir()
+        with patch("run_standing_trials.ROOT", root):
+            yield
 
 
 class WebotsVersionTests(unittest.TestCase):
@@ -82,6 +92,44 @@ class WebotsVersionTests(unittest.TestCase):
 
 
 class WorkflowProvenanceTests(unittest.TestCase):
+    def test_ci_archive_checkout_uses_exact_exported_commit(self):
+        head = "a" * 40
+        env = {
+            "GITHUB_ACTIONS": "true",
+            "GITHUB_SHA": head,
+            "RL_H25_BUILD_COMMIT": head,
+            "RL_H25_SOURCE_COMMIT_SHA": head,
+            "RL_H25_TEST_MERGE_SHA": head,
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            with patch("run_standing_trials.ROOT", Path(temp)):
+                self.assertEqual(head, require_clean_source_commit(env))
+
+    def test_ci_archive_checkout_rejects_unverified_provenance(self):
+        head = "a" * 40
+        valid = {
+            "GITHUB_ACTIONS": "true",
+            "GITHUB_SHA": head,
+            "RL_H25_BUILD_COMMIT": head,
+            "RL_H25_SOURCE_COMMIT_SHA": head,
+            "RL_H25_TEST_MERGE_SHA": head,
+        }
+        invalid_environments = (
+            valid | {"GITHUB_ACTIONS": "false"},
+            {key: value for key, value in valid.items() if key != "GITHUB_SHA"},
+            valid | {"GITHUB_SHA": "b" * 40},
+            valid | {"RL_H25_BUILD_COMMIT": "unverified"},
+            valid | {"RL_H25_SOURCE_COMMIT_SHA": "unverified"},
+            valid | {"RL_H25_TEST_MERGE_SHA": "b" * 40},
+        )
+        with tempfile.TemporaryDirectory() as temp:
+            with patch("run_standing_trials.ROOT", Path(temp)):
+                for env in invalid_environments:
+                    with self.subTest(env=env), self.assertRaisesRegex(
+                        RuntimeError, "source provenance"
+                    ):
+                        require_clean_source_commit(env)
+
     def test_local_provenance_overwrites_stale_environment(self):
         head = "a" * 40
         result = verified_provenance(
@@ -121,9 +169,10 @@ class WorkflowProvenanceTests(unittest.TestCase):
             CompletedProcess([], 0, stdout="a" * 40 + "\n", stderr=""),
             CompletedProcess([], 0, stdout=" M tools/example.py\n", stderr=""),
         ]
-        with patch("run_standing_trials.subprocess.run", side_effect=results):
-            with self.assertRaisesRegex(RuntimeError, "dirty working tree"):
-                require_clean_source_commit()
+        with git_checkout():
+            with patch("run_standing_trials.subprocess.run", side_effect=results):
+                with self.assertRaisesRegex(RuntimeError, "dirty working tree"):
+                    require_clean_source_commit()
 
     def test_gate_run_uses_clean_head(self):
         results = [
@@ -131,8 +180,9 @@ class WorkflowProvenanceTests(unittest.TestCase):
             CompletedProcess([], 0, stdout="", stderr=""),
             CompletedProcess([], 0, stdout="", stderr=""),
         ]
-        with patch("run_standing_trials.subprocess.run", side_effect=results):
-            self.assertEqual("a" * 40, require_clean_source_commit())
+        with git_checkout():
+            with patch("run_standing_trials.subprocess.run", side_effect=results):
+                self.assertEqual("a" * 40, require_clean_source_commit())
 
     def test_gate_run_refuses_untracked_runtime_source(self):
         results = [
@@ -140,9 +190,10 @@ class WorkflowProvenanceTests(unittest.TestCase):
             CompletedProcess([], 0, stdout="", stderr=""),
             CompletedProcess([], 0, stdout="tools/untracked.py\n", stderr=""),
         ]
-        with patch("run_standing_trials.subprocess.run", side_effect=results):
-            with self.assertRaisesRegex(RuntimeError, "untracked runtime source"):
-                require_clean_source_commit()
+        with git_checkout():
+            with patch("run_standing_trials.subprocess.run", side_effect=results):
+                with self.assertRaisesRegex(RuntimeError, "untracked runtime source"):
+                    require_clean_source_commit()
 
     def test_simulation_workflow_exports_exact_source_and_test_sha(self):
         workflow = (ROOT / ".github/workflows/simulation.yml").read_text(encoding="utf-8")

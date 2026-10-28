@@ -61,8 +61,30 @@ def build_native_env(binary: str, base_env: dict[str, str]) -> dict[str, str]:
     return env
 
 
-def require_clean_source_commit() -> str:
+def _valid_commit_sha(value: object) -> bool:
+    return (
+        isinstance(value, str) and len(value) == 40 and
+        all(char in "0123456789abcdefABCDEF" for char in value)
+    )
+
+
+def require_clean_source_commit(env: dict[str, str] | None = None) -> str:
     """Return HEAD only when native evidence can represent the checked-out source."""
+    provenance_env = os.environ if env is None else env
+    if not (ROOT / ".git").exists():
+        github_sha = provenance_env.get("GITHUB_SHA")
+        build = provenance_env.get("RL_H25_BUILD_COMMIT")
+        source = provenance_env.get("RL_H25_SOURCE_COMMIT_SHA")
+        test_merge = provenance_env.get("RL_H25_TEST_MERGE_SHA")
+        if (
+            provenance_env.get("GITHUB_ACTIONS") != "true" or
+            not _valid_commit_sha(github_sha) or
+            not _valid_commit_sha(build) or
+            not _valid_commit_sha(source) or
+            build != test_merge or test_merge != github_sha
+        ):
+            raise RuntimeError("cannot verify source provenance for native trial")
+        return build
     try:
         head = subprocess.run(
             ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True,
@@ -75,7 +97,7 @@ def require_clean_source_commit() -> str:
         ).stdout.strip()
     except (subprocess.SubprocessError, OSError) as exc:
         raise RuntimeError("cannot verify source provenance for native trial") from exc
-    if len(head) != 40 or any(char not in "0123456789abcdefABCDEF" for char in head):
+    if not _valid_commit_sha(head):
         raise RuntimeError("cannot verify source provenance for native trial")
     if tracked_changes:
         raise RuntimeError(
@@ -109,10 +131,7 @@ def verified_provenance(env: dict[str, str], head: str, *,
     build = env.get("RL_H25_BUILD_COMMIT")
     source = env.get("RL_H25_SOURCE_COMMIT_SHA")
     test_merge = env.get("RL_H25_TEST_MERGE_SHA")
-    valid_source = (
-        isinstance(source, str) and len(source) == 40 and
-        all(char in "0123456789abcdefABCDEF" for char in source)
-    )
+    valid_source = _valid_commit_sha(source)
     if build != head or test_merge != head or not valid_source:
         raise RuntimeError("CI provenance does not match the checked-out test commit")
     return env | {
